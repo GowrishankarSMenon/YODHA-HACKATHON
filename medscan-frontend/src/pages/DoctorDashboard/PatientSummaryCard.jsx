@@ -1,10 +1,9 @@
-import React from 'react';
-import { AlertTriangle, Activity, Pill, Heart, Info } from 'lucide-react';
+import { AlertTriangle, Activity, Pill, Heart, Info, Sparkles } from 'lucide-react';
 
 /**
  * PatientSummaryCard - Displays AI-generated insights from medical history
  */
-export default function PatientSummaryCard({ summary, isLoading, error }) {
+export default function PatientSummaryCard({ summary, isLoading, error, onGenerate }) {
     if (isLoading) {
         return (
             <div className="bg-white rounded-xl shadow-lg p-12 animate-pulse overflow-hidden relative">
@@ -30,12 +29,51 @@ export default function PatientSummaryCard({ summary, isLoading, error }) {
                 <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-red-900 mb-2">Summary Unavailable</h3>
                 <p className="text-red-700">{error}</p>
+                <div className="mt-6">
+                    <button
+                        onClick={onGenerate}
+                        className="inline-flex items-center gap-2 px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-md"
+                    >
+                        < Sparkles className="w-4 h-4" />
+                        Retry Generation
+                    </button>
+                </div>
                 <p className="text-xs text-red-500 mt-4 italic">Check your VITE_GEMINI_API_KEY in the .env file.</p>
             </div>
         );
     }
 
-    if (!summary) return null;
+    if (!summary) {
+        return (
+            <div className="bg-white rounded-xl shadow-lg p-12 border border-blue-50 relative overflow-hidden group">
+                {/* Decorative background elements */}
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-blue-50 rounded-full blur-3xl group-hover:bg-blue-100 transition-colors"></div>
+                <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-50 rounded-full blur-3xl group-hover:bg-indigo-100 transition-colors"></div>
+
+                <div className="text-center relative z-10">
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl transform group-hover:scale-110 transition-transform duration-500">
+                        <Sparkles className="w-10 h-10 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-3">AI Patient Summary</h3>
+                    <p className="text-gray-600 text-lg max-w-md mx-auto mb-8">
+                        Generate an intelligent analysis of the patient's entire medical history, identifying key diagnoses and risk factors.
+                    </p>
+                    <button
+                        onClick={onGenerate}
+                        className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300"
+                    >
+                        <Sparkles className="w-5 h-5" />
+                        Generate AI Summary
+                    </button>
+                    <div className="mt-8 flex items-center justify-center gap-6 text-sm text-gray-400">
+                        <span className="flex items-center gap-1.5"><Heart className="w-4 h-4 text-rose-400" /> Bio-metrics</span>
+                        <span className="flex items-center gap-1.5"><Pill className="w-4 h-4 text-blue-400" /> Medications</span>
+                        <span className="flex items-center gap-1.5"><Activity className="w-4 h-4 text-emerald-400" /> Diagnoses</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden animate-fade-in border border-blue-50">
@@ -43,14 +81,23 @@ export default function PatientSummaryCard({ summary, isLoading, error }) {
             <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600"></div>
 
             <div className="p-8">
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                        <Heart className="w-6 h-6 text-blue-600" />
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                            <Heart className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-900">Patient Health Summary</h2>
+                            <p className="text-sm text-gray-500">AI-powered analysis of medical history</p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-900">Patient Health Summary</h2>
-                        <p className="text-sm text-gray-500">AI-powered analysis of medical history</p>
-                    </div>
+                    <button
+                        onClick={onGenerate}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 font-bold rounded-lg hover:bg-blue-100 transition-all text-sm group"
+                    >
+                        <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                        Regenerate
+                    </button>
                 </div>
 
                 {/* Clinical Alerts */}
@@ -127,7 +174,7 @@ export default function PatientSummaryCard({ summary, isLoading, error }) {
             {/* Footer Branding */}
             <div className="bg-slate-50 px-8 py-4 flex justify-between items-center border-t border-slate-100">
                 <span className="text-[10px] text-slate-400 font-medium">Powered by Google Gemini 2.5 Flash</span>
-                <button className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors">Regenerate Analysis</button>
+                <span className="text-[10px] text-gray-400 italic">Medical Information Verification Required</span>
             </div>
         </div>
     );

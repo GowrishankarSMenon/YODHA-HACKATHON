@@ -68,26 +68,24 @@ export default function DoctorDashboard() {
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
     const [summaryError, setSummaryError] = useState(null);
 
-    // Initial summary generation
-    React.useEffect(() => {
-        const fetchSummary = async () => {
-            if (records.length === 0) return;
+    /**
+     * Generate patient summary manually
+     */
+    const handleGenerateSummary = async () => {
+        if (records.length === 0) return;
 
-            setIsSummaryLoading(true);
-            setSummaryError(null);
-            try {
-                const result = await generatePatientSummary(records);
-                setSummary(result);
-            } catch (err) {
-                console.error("Dashboard Summary Error:", err);
-                setSummaryError(err.message);
-            } finally {
-                setIsSummaryLoading(false);
-            }
-        };
-
-        fetchSummary();
-    }, [records]);
+        setIsSummaryLoading(true);
+        setSummaryError(null);
+        try {
+            const result = await generatePatientSummary(records);
+            setSummary(result);
+        } catch (err) {
+            console.error("Dashboard Summary Error:", err);
+            setSummaryError(err.message);
+        } finally {
+            setIsSummaryLoading(false);
+        }
+    };
 
     /**
      * Handle record selection from timeline
@@ -202,6 +200,7 @@ export default function DoctorDashboard() {
                                 summary={summary}
                                 isLoading={isSummaryLoading}
                                 error={summaryError}
+                                onGenerate={handleGenerateSummary}
                             />
                         ) : (
                             <div className="bg-white rounded-xl shadow-lg p-12 animate-fade-in relative overflow-hidden group">
