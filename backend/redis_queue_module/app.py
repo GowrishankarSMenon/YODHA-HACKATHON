@@ -9,7 +9,7 @@ import shutil
 from redis_queue_module.redis_queue import ocr_queue, redis_conn
 from rq.job import Job
 
-# Import the actual function from worker module
+# Import the actual function from worker modul
 from redis_queue_module.worker import process_document
 
 # ====================================================
