@@ -16,14 +16,21 @@ from io import BytesIO
 from PIL import Image
 from pdf2image import convert_from_bytes
 
-# Import OCR function from teammate's implementation
-try:
-    from ai.ai_engine import ocr_page
-    OCR_AVAILABLE = True
-    print("✅ OCR engine loaded successfully!")
-except ImportError as e:
-    OCR_AVAILABLE = False
-    print(f"⚠️  OCR engine not available: {e}. Using fallback simulation.")
+# Import OCR function (lazy loading to avoid TrOCR memory issues)
+OCR_AVAILABLE = False
+ocr_page = None
+
+def _ensure_ocr_loaded():
+    """Lazy load OCR engine only when needed."""
+    global OCR_AVAILABLE, ocr_page
+    if not OCR_AVAILABLE:
+        try:
+            from ai.ai_engine import ocr_page as _ocr_page
+            ocr_page = _ocr_page
+            OCR_AVAILABLE = True
+            print("✅ OCR engine loaded successfully!")
+        except ImportError as e:
+            print(f"⚠️  OCR engine not available: {e}")
 
 # Import LLM extractor
 from ai.llm_extractor import LLMExtractor
@@ -72,6 +79,8 @@ def perform_ocr(file_content: bytes, filename: str) -> str:
     """
     Perform OCR on uploaded file using teammate's TrOCR implementation.
     """
+    _ensure_ocr_loaded()  # Lazy load OCR engine
+    
     if OCR_AVAILABLE:
         # Use actual OCR from ai_worker.ocr_page()
         try:
@@ -117,10 +126,16 @@ def root():
 @app.get("/health")
 def health_check():
     """Health check endpoint."""
+    # Check Groq availability
+    from ai.llm_extractor import GROQ_AVAILABLE, USE_GROQ
+    
     return {
         "status": "healthy",
         "service": "MedScan AI LLM Pipeline",
         "ocr_available": OCR_AVAILABLE,
+        "groq_available": GROQ_AVAILABLE,
+        "groq_enabled": USE_GROQ,
+        "extraction_method": "groq" if USE_GROQ else "regex",
         "total_records": len(records_db)
     }
 
@@ -199,12 +214,17 @@ async def process_document(file: UploadFile = File(...)):
 @app.post("/api/extract-with-template")
 async def extract_with_template(file: UploadFile = File(...)):
     """
-    NEW: Extract with dual output - Raw OCR + Structured Template.
-    This is the main endpoint for the web interface.
+    Extract key-value pairs from medical documents using OCR + LLM.
     
-    Returns both:
-    - raw_ocr: The plain text from OCR
-    - structured_data: The LLM-extracted key-value pairs
+    This endpoint:
+    1. Performs OCR on uploaded document
+    2. Uses Groq Qwen LLM to extract key-value pairs (or fallback to regex)
+    3. Returns both raw OCR text and extracted key-value pairs
+    
+    Returns:
+        - raw_ocr: Plain text from OCR
+        - extracted_data: Key-value pairs from LLM extraction
+        - extraction_method: "groq" or "regex" (which method was used)
     """
     try:
         # Step 1: Read file
@@ -213,7 +233,7 @@ async def extract_with_template(file: UploadFile = File(...)):
         # Step 2: Perform OCR
         ocr_text = perform_ocr(file_content, file.filename)
         
-        # Step 3: LLM extraction
+        # Step 3: LLM extraction with Groq (or fallback to regex)
         extracted_data = LLMExtractor.extract_structured_data(ocr_text, "AUTO")
         detected_type = LLMExtractor._detect_document_type(ocr_text)
         
@@ -221,12 +241,17 @@ async def extract_with_template(file: UploadFile = File(...)):
         confidence_score = LLMExtractor.calculate_confidence(extracted_data, detected_type)
         status_value = LLMExtractor.determine_status(confidence_score)
         
-        # Return dual output
+        # Determine which extraction method was used
+        from ai.llm_extractor import GROQ_AVAILABLE, USE_GROQ
+        extraction_method = "groq" if (USE_GROQ and GROQ_AVAILABLE) else "regex"
+        
+        # Return key-value pairs format
         return {
             "success": True,
+            "extraction_method": extraction_method,
             "raw_ocr": ocr_text,
             "document_type": detected_type,
-            "structured_data": extracted_data,
+            "extracted_data": extracted_data,  # Now contains key-value pairs if using Groq
             "confidence_score": confidence_score,
             "status": status_value,
             "processed_at": datetime.now().isoformat() + "Z"
@@ -314,10 +339,12 @@ if __name__ == "__main__":
     print("📚 API Docs: http://localhost:8000/docs")
     print("💚 Health Check: http://localhost:8000/health")
     print("🔬 Process Document: POST http://localhost:8000/api/process-document")
+    print("\n⚠️  Auto-reload DISABLED to prevent TrOCR memory issues")
+    print("   (Restart server manually after code changes)\n")
     
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True
+        reload=False  # Disabled to prevent TrOCR memory crashes
     )

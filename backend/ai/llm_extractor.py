@@ -1,10 +1,23 @@
 """
 LLM-based extraction service for medical documents.
 Converts OCR extracted text into structured JSON format.
+Supports both regex-based and Groq LLM-based extraction.
 """
 import re
+import os
 from typing import Dict, Any, List
 from datetime import datetime
+
+# Try to import Groq service (optional)
+try:
+    from ai.groq_service import get_groq_service
+    GROQ_AVAILABLE = True
+except Exception as e:
+    GROQ_AVAILABLE = False
+    print(f"⚠️ Groq service not available: {e}")
+
+# Configuration: Use Groq by default if available
+USE_GROQ = os.getenv("USE_GROQ", "true").lower() == "true" and GROQ_AVAILABLE
 
 class LLMExtractor:
     """
@@ -14,22 +27,38 @@ class LLMExtractor:
     """
     
     @staticmethod
-    def extract_structured_data(ocr_text: str, document_type: str = "AUTO") -> Dict[str, Any]:
+    def extract_structured_data(
+        ocr_text: str, 
+        document_type: str = "AUTO",
+        use_groq: bool = None
+    ) -> Dict[str, Any]:
         """
         Extract structured data from OCR text.
         
         Args:
             ocr_text: Raw text extracted from OCR
             document_type: Type of document (OPD_NOTE, LAB_REPORT, PRESCRIPTION, AUTO)
+            use_groq: Force Groq usage (True/False) or None for auto-detection
         
         Returns:
-            Structured JSON with extracted fields
+            Structured JSON with extracted fields (key-value pairs if using Groq)
         """
+        # Determine if we should use Groq
+        should_use_groq = use_groq if use_groq is not None else USE_GROQ
+        
         # Auto-detect document type if not specified
         if document_type == "AUTO":
             document_type = LLMExtractor._detect_document_type(ocr_text)
         
-        # Route to appropriate extractor
+        # Use Groq extraction if enabled and available
+        if should_use_groq and GROQ_AVAILABLE:
+            try:
+                return LLMExtractor._extract_with_groq(ocr_text, document_type)
+            except Exception as e:
+                print(f"Groq extraction failed, falling back to regex: {e}")
+                # Fallback to regex extraction
+        
+        # Route to appropriate regex-based extractor (original method)
         if document_type == "OPD_NOTE":
             return LLMExtractor._extract_opd_note(ocr_text)
         elif document_type == "LAB_REPORT":
@@ -38,6 +67,22 @@ class LLMExtractor:
             return LLMExtractor._extract_prescription(ocr_text)
         else:
             return LLMExtractor._extract_generic(ocr_text)
+    
+    @staticmethod
+    def _extract_with_groq(ocr_text: str, document_type: str) -> Dict[str, Any]:
+        """
+        Extract key-value pairs using Groq API.
+        
+        Args:
+            ocr_text: Raw OCR text
+            document_type: Document type hint
+        
+        Returns:
+            Dictionary of extracted key-value pairs
+        """
+        groq_service = get_groq_service()
+        extracted_data = groq_service.extract_key_value_pairs(ocr_text, document_type)
+        return extracted_data
     
     @staticmethod
     def _detect_document_type(text: str) -> str:
@@ -196,13 +241,92 @@ class LLMExtractor:
     def calculate_confidence(extracted_data: Dict[str, Any], document_type: str) -> float:
         """
         Calculate confidence score based on extracted fields.
+        Supports both Groq key-value format and regex structured format.
         
         Args:
-            extracted_data: Extracted structured data
+            extracted_data: Extracted structured data (nested or key-value pairs)
             document_type: Type of document
         
         Returns:
             Confidence score (0.0 to 1.0)
+        """
+        # Detect if this is Groq key-value format (flat with human-readable keys)
+        # vs regex format (nested with technical keys)
+        is_groq_format = LLMExtractor._is_groq_format(extracted_data)
+        
+        if is_groq_format:
+            return LLMExtractor._calculate_groq_confidence(extracted_data, document_type)
+        else:
+            return LLMExtractor._calculate_regex_confidence(extracted_data, document_type)
+    
+    @staticmethod
+    def _is_groq_format(extracted_data: Dict[str, Any]) -> bool:
+        """Detect if extracted data is in Groq key-value format."""
+        # Groq format characteristics:
+        # - Flat structure (no nested dicts/lists)
+        # - Human-readable keys (capitalized, spaces)
+        # - String values
+        
+        if not extracted_data:
+            return False
+        
+        # Check for common Groq keys (capitalized, human-readable)
+        groq_indicators = [
+            "Patient Name", "Patient ID", "UHID", 
+            "Diagnosis", "Doctor", "Hospital",
+            "Test Name", "Report Date", "Medication"
+        ]
+        
+        has_groq_key = any(key in extracted_data for key in groq_indicators)
+        
+        # Check if mostly flat structure
+        has_nested = any(isinstance(v, (dict, list)) for v in extracted_data.values())
+        
+        return has_groq_key and not has_nested
+    
+    @staticmethod
+    def _calculate_groq_confidence(extracted_data: Dict[str, Any], document_type: str) -> float:
+        """
+        Calculate confidence for Groq-extracted key-value pairs.
+        Based on number of fields extracted and data quality.
+        """
+        # Count extracted fields
+        num_fields = len(extracted_data)
+        
+        # Exclude error fields
+        if "error" in extracted_data:
+            return 0.3
+        
+        # Base score on number of extracted fields
+        if num_fields >= 15:
+            score = 0.95  # Excellent extraction
+        elif num_fields >= 10:
+            score = 0.85  # Good extraction
+        elif num_fields >= 6:
+            score = 0.75  # Acceptable extraction
+        elif num_fields >= 3:
+            score = 0.60  # Minimal extraction
+        else:
+            score = 0.50  # Poor extraction
+        
+        # Bonus for critical medical fields
+        critical_fields = [
+            "Patient ID", "UHID", "Patient Name",
+            "Diagnosis", "Test Name", "Medication",
+            "Doctor", "Pathologist"
+        ]
+        
+        critical_found = sum(1 for field in critical_fields if field in extracted_data)
+        if critical_found > 0:
+            score += min(critical_found * 0.02, 0.10)  # Up to +0.10 bonus
+        
+        # Cap at 1.0
+        return min(score, 1.0)
+    
+    @staticmethod
+    def _calculate_regex_confidence(extracted_data: Dict[str, Any], document_type: str) -> float:
+        """
+        Calculate confidence for regex-extracted structured data (original method).
         """
         base_score = 0.5
         score = base_score
