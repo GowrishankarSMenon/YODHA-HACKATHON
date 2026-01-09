@@ -115,8 +115,8 @@ export default function VitalsChart() {
 
                                 {/* Trend Indicator */}
                                 <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${vital.trend === 'up' ? 'bg-green-100 text-green-700' :
-                                        vital.trend === 'down' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-gray-100 text-gray-700'
+                                    vital.trend === 'down' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-gray-100 text-gray-700'
                                     }`}>
                                     {getTrendIcon(vital.trend)}
                                     <span>{vital.trendValue}</span>
@@ -136,7 +136,7 @@ export default function VitalsChart() {
 
                             {/* Sparkline Chart */}
                             <div className="h-12 -mx-2">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                                     <LineChart data={vital.data}>
                                         <Line
                                             type="monotone"
