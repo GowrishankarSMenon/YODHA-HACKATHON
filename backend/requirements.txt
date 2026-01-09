@@ -10,3 +10,7 @@ opencv-python
 numpy
 sentencepiece
 protobuf
+redis
+rq
+
+python-multipart
