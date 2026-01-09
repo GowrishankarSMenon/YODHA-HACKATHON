@@ -10,12 +10,7 @@ opencv-python
 numpy
 sentencepiece
 protobuf
-<<<<<<< HEAD
 redis
 rq
 
 python-multipart
-=======
-groq
-python-dotenv
->>>>>>> 1dae80ad90d65b93485af70fa8264ee1493c2795

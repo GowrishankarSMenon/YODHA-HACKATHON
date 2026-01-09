@@ -1,8 +1,8 @@
-"""
+﻿"""
 MedScan AI Backend - LLM-Based Extraction Pipeline
 Main FastAPI application for processing medical documents.
 
-Workflow: DOCUMENT → OCR → LLM → DATABASE → FETCH
+Workflow: DOCUMENT â†’ OCR â†’ LLM â†’ DATABASE â†’ FETCH
 """
 import uvicorn
 import uuid
@@ -20,14 +20,14 @@ import shutil
 
 # Redis Queue imports for async processing
 try:
-    from redis_queue_module.redis_queue import ocr_queue, redis_conn
+    from redis_queue import ocr_queue, redis_conn
     from rq.job import Job
     from rq.registry import FinishedJobRegistry, FailedJobRegistry
     QUEUE_AVAILABLE = True
-    print("✅ Redis queue available for async processing")
+    print("âœ… Redis queue available for async processing")
 except ImportError as e:
     QUEUE_AVAILABLE = False
-    print(f"⚠️  Redis queue not available: {e}")
+    print(f"âš ï¸  Redis queue not available: {e}")
     print("   Async processing endpoints will not be available")
 
 # Import OCR function (lazy loading to avoid TrOCR memory issues)
@@ -42,9 +42,9 @@ def _ensure_ocr_loaded():
             from ai.ai_engine import ocr_page as _ocr_page
             ocr_page = _ocr_page
             OCR_AVAILABLE = True
-            print("✅ OCR engine loaded successfully!")
+            print("âœ… OCR engine loaded successfully!")
         except ImportError as e:
-            print(f"⚠️  OCR engine not available: {e}")
+            print(f"âš ï¸  OCR engine not available: {e}")
 
 # Import LLM extractor
 from ai.llm_extractor import LLMExtractor
@@ -162,7 +162,7 @@ def health_check():
 @app.post("/api/process-document", response_model=Dict[str, Any])
 async def process_document(file: UploadFile = File(...)):
     """
-    Main processing endpoint: Upload → OCR → LLM → Database
+    Main processing endpoint: Upload â†’ OCR â†’ LLM â†’ Database
     
     Workflow:
     1. Receive PDF/image upload
@@ -248,24 +248,24 @@ async def extract_with_template(file: UploadFile = File(...)):
     """
     try:
         print("\n" + "*"*80)
-        print("🌐 API ENDPOINT - /api/extract-with-template called")
+        print("ðŸŒ API ENDPOINT - /api/extract-with-template called")
         print("*"*80)
         
         # Step 1: Read file
-        print(f"\n📥 Step 1: Reading file '{file.filename}'...")
+        print(f"\nðŸ“¥ Step 1: Reading file '{file.filename}'...")
         file_content = await file.read()
-        print(f"✅ File read - Size: {len(file_content)} bytes")
+        print(f"âœ… File read - Size: {len(file_content)} bytes")
         
         # Step 2: Perform OCR
-        print(f"\n🔍 Step 2: Performing OCR...")
+        print(f"\nðŸ” Step 2: Performing OCR...")
         ocr_text = perform_ocr(file_content, file.filename)
-        print(f"✅ OCR completed - Text length: {len(ocr_text)} characters")
-        print(f"📝 OCR text preview (first 200 chars): {ocr_text[:200]}...")
+        print(f"âœ… OCR completed - Text length: {len(ocr_text)} characters")
+        print(f"ðŸ“ OCR text preview (first 200 chars): {ocr_text[:200]}...")
         
         # Step 3: LLM extraction with Groq (or fallback to regex)
-        print(f"\n🤖 Step 3: Extracting structured data with LLM...")
+        print(f"\nðŸ¤– Step 3: Extracting structured data with LLM...")
         extracted_data = LLMExtractor.extract_structured_data(ocr_text, "AUTO")
-        print(f"\n✅ LLM extraction completed")
+        print(f"\nâœ… LLM extraction completed")
         print(f"   Type: {type(extracted_data)}")
         print(f"   Is None: {extracted_data is None}")
         if extracted_data:
@@ -273,20 +273,20 @@ async def extract_with_template(file: UploadFile = File(...)):
             print(f"   Number of fields: {len(extracted_data) if isinstance(extracted_data, dict) else 0}")
         
         detected_type = LLMExtractor._detect_document_type(ocr_text)
-        print(f"✅ Document type detected: {detected_type}")
+        print(f"âœ… Document type detected: {detected_type}")
         
         # Step 4: Calculate confidence
-        print(f"\n📊 Step 4: Calculating confidence score...")
+        print(f"\nðŸ“Š Step 4: Calculating confidence score...")
         confidence_score = LLMExtractor.calculate_confidence(extracted_data, detected_type)
-        print(f"✅ Confidence score: {confidence_score}")
+        print(f"âœ… Confidence score: {confidence_score}")
         
         status_value = LLMExtractor.determine_status(confidence_score)
-        print(f"✅ Status: {status_value}")
+        print(f"âœ… Status: {status_value}")
         
         # Determine which extraction method was used
         from ai.llm_extractor import GROQ_AVAILABLE, USE_GROQ
         extraction_method = "groq" if (USE_GROQ and GROQ_AVAILABLE) else "regex"
-        print(f"\n🔬 Extraction method: {extraction_method}")
+        print(f"\nðŸ”¬ Extraction method: {extraction_method}")
         
         # Return key-value pairs format
         response_data = {
@@ -300,22 +300,22 @@ async def extract_with_template(file: UploadFile = File(...)):
             "processed_at": datetime.now().isoformat() + "Z"
         }
         
-        print(f"\n📤 Step 5: Preparing response...")
+        print(f"\nðŸ“¤ Step 5: Preparing response...")
         print(f"   Response keys: {list(response_data.keys())}")
         print(f"   Response extracted_data type: {type(response_data['extracted_data'])}")
         print(f"   Response extracted_data is None: {response_data['extracted_data'] is None}")
         print("*"*80)
-        print("✅ API REQUEST COMPLETED SUCCESSFULLY")
+        print("âœ… API REQUEST COMPLETED SUCCESSFULLY")
         print("*"*80 + "\n")
         
         return response_data
         
     except Exception as e:
         import traceback
-        print(f"\n❌ ERROR in /api/extract-with-template")
-        print(f"❌ Error type: {type(e).__name__}")
-        print(f"❌ Error message: {str(e)}")
-        print(f"❌ Traceback:")
+        print(f"\nâŒ ERROR in /api/extract-with-template")
+        print(f"âŒ Error type: {type(e).__name__}")
+        print(f"âŒ Error message: {str(e)}")
+        print(f"âŒ Traceback:")
         traceback.print_exc()
         print("*"*80 + "\n")
         
@@ -390,163 +390,3 @@ async def test_llm_extraction(ocr_text: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Extraction failed: {str(e)}"
         )
-# ================================================================
-# REDIS QUEUE ENDPOINTS (Async Processing)
-# Add these endpoints to main.py after the /api/test-llm endpoint
-# ================================================================
-
-@app.post("/upload")
-async def upload_document_async(file: UploadFile = File(...)):
-    """
-    Upload a document and queue it for async OCR + LLM processing.
-    Returns a job_id that can be used to check status and get results.
-    """
-    if not QUEUE_AVAILABLE:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Queue service not available. Use /api/extract-with-template instead."
-        )
-    
-    job_id = str(uuid.uuid4())
-    ext = os.path.splitext(file.filename)[1]
-    file_path = os.path.join(UPLOAD_DIR, f"{job_id}{ext}")
-    
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    print(f"[QUEUE] File saved: {file_path}")
-    print(f"[QUEUE] Queueing job {job_id}...")
-    
-    # Import worker function
-    from redis_queue_module.worker import process_document_with_llm
-    
-    # Enqueue job
-    job = ocr_queue.enqueue(
-        process_document_with_llm,
-        job_id=job_id,
-        file_path=file_path,
-        job_timeout='10m'
-    )
-    
-    print(f"[QUEUE] Job queued with ID: {job.id}")
-    
-    return {
-        "job_id": job.id,
-        "custom_job_id": job_id,
-        "status": "QUEUED",
-        "filename": file.filename
-    }
-
-
-@app.get("/status/{job_id}")
-async def get_job_status(job_id: str):
-    """Check the status of an async processing job."""
-    if not QUEUE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Queue not available")
-    
-    try:
-        job = Job.fetch(job_id, connection=redis_conn)
-        
-        response = {
-            "job_id": job_id,
-            "status": job.get_status(),
-            "created_at": job.created_at.isoformat() if job.created_at else None,
-            "started_at": job.started_at.isoformat() if job.started_at else None,
-            "ended_at": job.ended_at.isoformat() if job.ended_at else None,
-        }
-        
-        if job.is_finished:
-            response["result"] = job.result
-        if job.is_failed:
-            response["error"] = str(job.exc_info)
-        
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Job not found: {str(e)}")
-
-
-@app.get("/result/{job_id}")
-async def get_job_result(job_id: str):
-    """Get the result of a completed async processing job."""
-    if not QUEUE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Queue not available")
-    
-    try:
-        job = Job.fetch(job_id, connection=redis_conn)
-        
-        if not job.is_finished:
-            raise HTTPException(status_code=400, detail=f"Job not finished. Status: {job.get_status()}")
-        
-        return {
-            "job_id": job_id,
-            "status": "completed",
-           "result": job.result
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Job not found: {str(e)}")
-
-
-@app.get("/queue/stats")
-async def get_queue_stats():
-    """Get Redis queue statistics."""
-    if not QUEUE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Queue not available")
-    
-    return {
-        "queue_name": ocr_queue.name,
-        "queued_jobs": len(ocr_queue),
-        "started_jobs": ocr_queue.started_job_registry.count,
-        "finished_jobs": ocr_queue.finished_job_registry.count,
-        "failed_jobs": ocr_queue.failed_job_registry.count,
-    }
-
-
-@app.delete("/cleanup")
-async def cleanup_old_jobs():
-    """Clean up old completed and failed jobs from Redis."""
-    if not QUEUE_AVAILABLE:
-        raise HTTPException(status_code=503, detail="Queue not available")
-    
-    finished_registry = FinishedJobRegistry(queue=ocr_queue)
-    failed_registry = FailedJobRegistry(queue=ocr_queue)
-    
-    finished_count = finished_registry.count
-    failed_count = failed_registry.count
-    
-    for job_id in finished_registry.get_job_ids():
-        try:
-            Job.fetch(job_id, connection=redis_conn).delete()
-        except:
-            pass
-    
-    for job_id in failed_registry.get_job_ids():
-        try:
-            Job.fetch(job_id, connection=redis_conn).delete()
-        except:
-            pass
-    
-    return {
-        "cleaned_finished": finished_count,
-        "cleaned_failed": failed_count
-    }
-
-# ================================================================
-# RUN SERVER
-# ================================================================
-
-if __name__ == "__main__":
-    print("🚀 Starting MedScan AI - LLM Extraction Pipeline")
-    print("📚 API Docs: http://localhost:8000/docs")
-    print("💚 Health Check: http://localhost:8000/health")
-    print("🔬 Process Document: POST http://localhost:8000/api/process-document")
-    print("\n⚠️  Auto-reload DISABLED to prevent TrOCR memory issues")
-    print("   (Restart server manually after code changes)\n")
-    
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=False  # Disabled to prevent TrOCR memory crashes
-    )

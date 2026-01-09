@@ -1,0 +1,19 @@
+﻿
+# ================================================================
+# RUN SERVER
+# ================================================================
+
+if __name__ == "__main__":
+    print("ðŸš€ Starting MedScan AI - LLM Extraction Pipeline")
+    print("ðŸ“š API Docs: http://localhost:8000/docs")
+    print("ðŸ’š Health Check: http://localhost:8000/health")
+    print("ðŸ”¬ Process Document: POST http://localhost:8000/api/process-document")
+    print("\nâš ï¸  Auto-reload DISABLED to prevent TrOCR memory issues")
+    print("   (Restart server manually after code changes)\n")
+    
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False  # Disabled to prevent TrOCR memory crashes
+    )
