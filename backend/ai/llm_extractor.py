@@ -62,16 +62,16 @@ class LLMExtractor:
             document_type = LLMExtractor._detect_document_type(ocr_text)
             print(f"🔍 Auto-detected Document Type: {document_type}")
         
-        # Use Groq extraction if enabled and available
+        # Use Groq extraction (Summarization) if enabled and available
         if should_use_groq and GROQ_AVAILABLE:
             try:
-                print(f"\n🚀 Using GROQ extraction method")
-                result = LLMExtractor._extract_with_groq(ocr_text, document_type)
-                print(f"✅ Groq extraction returned: {type(result)}")
-                print(f"📊 Groq result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
+                print(f"\n🚀 Using GROQ SUMMARIZATION method")
+                # We now call summarize instead of extract_with_groq
+                result = LLMExtractor._summarize_with_groq(ocr_text, document_type)
+                print(f"✅ Groq summarization returned: {type(result)}")
                 return result
             except Exception as e:
-                print(f"\n❌ Groq extraction failed: {type(e).__name__}: {e}")
+                print(f"\n❌ Groq summarization failed: {type(e).__name__}: {e}")
                 print(f"🔄 Falling back to regex extraction")
                 # Fallback to regex extraction
         
@@ -118,6 +118,17 @@ class LLMExtractor:
             print(f"   Content: {json.dumps(extracted_data, indent=2) if isinstance(extracted_data, dict) else str(extracted_data)}")
         
         return extracted_data
+    
+    @staticmethod
+    def _summarize_with_groq(ocr_text: str, document_type: str) -> Dict[str, Any]:
+        """
+        Summarize document using Groq API.
+        """
+        print(f"\n🔗 _summarize_with_groq() - Getting Groq service...")
+        groq_service = get_groq_service()
+        
+        print(f"\n📞 Calling groq_service.summarize_text()...")
+        return groq_service.summarize_text(ocr_text, document_type)
     
     @staticmethod
     def _detect_document_type(text: str) -> str:
@@ -315,7 +326,8 @@ class LLMExtractor:
         groq_indicators = [
             "Patient Name", "Patient ID", "UHID", 
             "Diagnosis", "Doctor", "Hospital",
-            "Test Name", "Report Date", "Medication"
+            "Test Name", "Report Date", "Medication",
+            "Summary"
         ]
         
         has_groq_key = any(key in extracted_data for key in groq_indicators)
@@ -337,6 +349,16 @@ class LLMExtractor:
         # Exclude error fields
         if "error" in extracted_data:
             return 0.3
+            
+        # Check for Summary (Single field high confidence)
+        if "Summary" in extracted_data:
+            summary_text = extracted_data["Summary"]
+            if len(summary_text) > 50:
+                return 0.95  # High confidence for good summary
+            elif len(summary_text) > 10:
+                return 0.80  # Good confidence for short summary
+            else:
+                return 0.40  # Low confidence for empty/tiny summary
         
         # Base score on number of extracted fields
         if num_fields >= 15:

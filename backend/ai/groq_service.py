@@ -169,23 +169,68 @@ Focus on: Patient identifiers, diagnoses, medications, vitals, test results, dat
         
         return prompt
     
-    def test_connection(self) -> bool:
-        """Test the Groq API connection."""
+
+
+    def summarize_text(
+        self, 
+        ocr_text: str, 
+        document_type: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Summarize OCR text using Groq's LLM.
+        
+        Args:
+            ocr_text: Raw text extracted from OCR
+            document_type: Optional document type hint
+        
+        Returns:
+            Dictionary with a single 'Summary' key
+        """
+        print("\n" + "="*80)
+        print("📝 GROQ SERVICE - summarize_text() called")
+        print("="*80)
+        
+        prompt = f"""Please provide a clear, concise summary of this medical document.
+        
+Document Type: {document_type if document_type else "Unknown"}
+
+OCR Text:
+{ocr_text}
+
+Your summary should cover the key medical details (patient issues, diagnosis, medications, key results) in 3-5 sentences.
+Return ONLY a JSON object with a single key "Summary" containing the text summary."""
+
         try:
+            print("\n🚀 Calling Groq API for summary...")
+            
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {
+                        "role": "system",
+                        "content": "You are a helpful medical assistant. Summarize medical documents clearly and accurately."
+                    },
+                    {
                         "role": "user",
-                        "content": "Reply with 'OK' if you can read this."
+                        "content": prompt
                     }
                 ],
-                max_tokens=10
+                temperature=0.3, # Slightly higher for more natural language
+                max_tokens=500,
+                response_format={"type": "json_object"}
             )
-            return True
+            
+            result = response.choices[0].message.content
+            print(f"\n✅ Summary received: {result[:100]}...")
+            
+            return json.loads(result)
+            
         except Exception as e:
-            print(f"Groq connection test failed: {e}")
-            return False
+            print(f"\n❌ Summary generation failed: {e}")
+            return {
+                "Summary": f"Could not generate summary. Error: {str(e)}",
+                "Raw Text Preview": ocr_text[:500] + "..."
+            }
 
 
 # Singleton instance
