@@ -6,16 +6,32 @@ from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 from typing import List, Tuple
 
 # ================================================================
-# LOAD TrOCR MODEL
+# LOAD TrOCR MODEL (LAZY LOADING)
 # ================================================================
-MODEL_NAME = "microsoft/trocr-small-handwritten"
+MODEL_NAME = "microsoft/trocr-base-handwritten"
 
-processor = TrOCRProcessor.from_pretrained(MODEL_NAME)
-model = VisionEncoderDecoderModel.from_pretrained(MODEL_NAME)
+# Lazy loading - only load when first needed
+processor = None
+model = None
+device = None
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model.to(device)
-model.eval()
+def _load_model():
+    """Load TrOCR model lazily (only when first needed)."""
+    global processor, model, device
+    
+    if model is not None:
+        return  # Already loaded
+    
+    print("📥 Loading TrOCR model (this may take a moment)...")
+    from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+    
+    processor = TrOCRProcessor.from_pretrained(MODEL_NAME)
+    model = VisionEncoderDecoderModel.from_pretrained(MODEL_NAME)
+    
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+    model.eval()
+    print("✅ TrOCR model loaded successfully!")
 
 # ================================================================
 # IMPROVED OCR UTILITIES
@@ -163,6 +179,8 @@ def preprocess_for_trocr_improved(img: Image.Image) -> Image.Image:
 
 def ocr_line_with_confidence(img: Image.Image) -> Tuple[str, float]:
     """OCR with confidence score estimation"""
+    _load_model()  # Ensure model is loaded
+    
     inputs = processor(images=img, return_tensors="pt").pixel_values.to(device)
     
     # Generate with beam search for better results
