@@ -10,3 +10,4 @@ pillow
 numpy
 pdf2image
 python-multipart
+protobuf
