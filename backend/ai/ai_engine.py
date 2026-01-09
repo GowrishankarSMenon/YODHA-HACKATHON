@@ -8,7 +8,7 @@ from typing import List, Tuple
 # ================================================================
 # LOAD TrOCR MODEL (LAZY LOADING)
 # ================================================================
-MODEL_NAME = "microsoft/trocr-base-handwritten"
+MODEL_NAME = "microsoft/trocr-small-handwritten"
 
 # Lazy loading - only load when first needed
 processor = None
