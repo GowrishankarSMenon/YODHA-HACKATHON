@@ -13,11 +13,11 @@ class Patient(BaseModel):
     uhid: str
 
 class MedicalRecord(BaseModel):
-    id: str
-    patient_id: str
-    doc_type: str              # e.g., "Lab Report"
-    file_url: str
-    upload_date: datetime
-    status: str                # "processing", "verified"
-    confidence_score: float    # 0.0 to 1.0
-    extracted_data: Dict[str, Any]  # The AI results go here
+    record_id: str                  # Changed from 'id' to match output schema
+    patient_id: str                 # UHID or patient identifier
+    document_type: str              # OPD_NOTE, LAB_REPORT, PRESCRIPTION, GENERAL
+    extracted_data: Dict[str, Any]  # Structured data extracted by LLM
+    confidence_score: float         # 0.0 to 1.0
+    status: str                     # AUTO_APPROVED, PENDING_REVIEW, REJECTED
+    processed_at: str               # ISO timestamp of processing
+    file_url: Optional[str] = None  # Optional: path to uploaded file
