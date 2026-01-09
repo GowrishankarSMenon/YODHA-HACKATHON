@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Handwritten OCR</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #e8f0ff;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+
+        .upload-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #333;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px dashed #0056e0;
+            border-radius: 6px;
+            background: #f8f9ff;
+            cursor: pointer;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 14px;
+            width: 100%;
+            font-size: 16px;
+            background: #0056e0;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #003fa6;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            color: #0056e0;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: #ffe6e6;
+            border-radius: 6px;
+        }
+
+        .result-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 12px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        .result-box h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .text-output {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .copy-btn {
+            margin-top: 15px;
+            padding: 10px 20px;
+            width: auto;
+            background: #28a745;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+        }
+
+        .success-msg {
+            color: #28a745;
+            text-align: center;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="upload-box">
+        <h2>📄 Handwritten OCR Extractor</h2>
+        <input type="file" id="fileInput" accept="image/*,application/pdf">
+        <button onclick="extract()">Extract Text</button>
+        <div id="loadingMsg" class="loading" style="display: none;">⏳ Processing your document...</div>
+        <div id="errorMsg" class="error" style="display: none;"></div>
+    </div>
+
+    <div id="resultBox" class="result-box">
+        <h3>📝 Extracted Text</h3>
+        <div id="textOutput" class="text-output"></div>
+        <button class="copy-btn" onclick="copyText()">📋 Copy to Clipboard</button>
+        <div id="successMsg" class="success-msg" style="display: none;">✓ Copied!</div>
+    </div>
+</div>
+
+<script>
+async function extract() {
+    const file = document.getElementById("fileInput").files[0];
+    if (!file) {
+        showError("Please select a file!");
+        return;
+    }
+
+    const button = event.target;
+    button.disabled = true;
+    showLoading();
+    hideError();
+    hideResult();
+
+    let formData = new FormData();
+    formData.append("file", file);
+
+    try {
+        let res = await fetch("/extract", {
+            method: "POST",
+            body: formData
+        });
+
+        if (!res.ok) {
+            throw new Error("Failed to extract data");
+        }
+
+        let data = await res.json();
+        displayText(data.text);
+        hideLoading();
+    } catch (error) {
+        showError("Error extracting data: " + error.message);
+        hideLoading();
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function displayText(text) {
+    document.getElementById("textOutput").textContent = text;
+    document.getElementById("resultBox").style.display = "block";
+    document.getElementById("successMsg").style.display = "none";
+}
+
+function copyText() {
+    const text = document.getElementById("textOutput").textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        const msg = document.getElementById("successMsg");
+        msg.style.display = "block";
+        setTimeout(() => {
+            msg.style.display = "none";
+        }, 2000);
+    });
+}
+
+function showLoading() {
+    document.getElementById("loadingMsg").style.display = "block";
+}
+
+function hideLoading() {
+    document.getElementById("loadingMsg").style.display = "none";
+}
+
+function showError(msg) {
+    const errorEl = document.getElementById("errorMsg");
+    errorEl.textContent = msg;
+    errorEl.style.display = "block";
+}
+
+function hideError() {
+    document.getElementById("errorMsg").style.display = "none";
+}
+
+function hideResult() {
+    document.getElementById("resultBox").style.display = "none";
+}
+</script>
+
+</body>
+</html>
