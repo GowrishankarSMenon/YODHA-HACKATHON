@@ -2,3 +2,11 @@ fastapi
 uvicorn
 python-multipart
 pydantic
+torch
+transformers
+sentencepiece
+opencv-python
+pillow
+numpy
+pdf2image
+python-multipart

@@ -7,7 +7,7 @@ from io import BytesIO
 from PIL import Image
 from pdf2image import convert_from_bytes
 
-from ai_worker import ocr_page
+from ai.ai_engine import ocr_page
 
 # ================================================================
 # FASTAPI SETUP
