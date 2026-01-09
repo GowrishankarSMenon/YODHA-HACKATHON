@@ -1,3 +1,4 @@
+<<<<<<< HEAD:backend/test_redis.py
 """
 Test script to debug the queue setup
 """
@@ -106,3 +107,8 @@ print("   - Keep it running in the background")
 print("\n3. Check logs:")
 print("   - Worker terminal will show processing logs")
 print("   - Check for import errors or missing dependencies")
+=======
+from redis_queue import redis_conn
+
+print(redis_conn.ping())
+>>>>>>> 1de5ee8be36aa0996cddad88f7cf26af33429df7:backend/tests/test_redis.py
