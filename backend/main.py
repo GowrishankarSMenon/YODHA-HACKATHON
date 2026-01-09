@@ -536,7 +536,7 @@ async def cleanup_old_jobs():
 # RUN SERVER
 # ================================================================
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     print("🚀 Starting MedScan AI - LLM Extraction Pipeline")
     print("📚 API Docs: http://localhost:8000/docs")
     print("💚 Health Check: http://localhost:8000/health")

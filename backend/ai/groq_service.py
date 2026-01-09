@@ -1,3 +1,5 @@
+groq_service.py:-
+
 """
 Groq API Service for Medical Document Key-Value Extraction
 Uses Groq's Qwen model to intelligently extract key-value pairs from OCR text.
@@ -14,7 +16,7 @@ load_dotenv()
 class GroqService:
     """Service for interacting with Groq API for LLM-based extraction."""
     
-    def __init__(self):
+    def _init_(self):
         """Initialize Groq client with API key."""
         self.api_key = os.getenv("GROQ_API_KEY")
         if not self.api_key:
@@ -54,7 +56,7 @@ class GroqService:
         
         # Build the prompt based on document type
         prompt = self._build_extraction_prompt(ocr_text, document_type)
-        print(f"\n✉️  Prompt Built - Length: {len(prompt)} characters")
+        print(f"\n✉  Prompt Built - Length: {len(prompt)} characters")
         
         try:
             print("\n🚀 Calling Groq API...")
@@ -110,7 +112,7 @@ class GroqService:
                 "raw_text": ocr_text[:200]  # First 200 chars for reference
             }
         except Exception as e:
-            print(f"\n❌ Groq API Error: {type(e).__name__}: {e}")
+            print(f"\n❌ Groq API Error: {type(e)._name_}: {e}")
             print(f"❌ Full Error: {repr(e)}")
             print("="*80)
             # Return fallback structure

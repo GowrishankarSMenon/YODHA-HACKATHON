@@ -1,3 +1,5 @@
+llm_extractor.py:-
+
 """
 LLM-based extraction service for medical documents.
 Converts OCR extracted text into structured JSON format.
@@ -15,7 +17,7 @@ try:
     GROQ_AVAILABLE = True
 except Exception as e:
     GROQ_AVAILABLE = False
-    print(f"⚠️ Groq service not available: {e}")
+    print(f"⚠ Groq service not available: {e}")
 
 # Configuration: Use Groq by default if available
 USE_GROQ = os.getenv("USE_GROQ", "true").lower() == "true" and GROQ_AVAILABLE
@@ -71,7 +73,7 @@ class LLMExtractor:
                 print(f"📊 Groq result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
                 return result
             except Exception as e:
-                print(f"\n❌ Groq extraction failed: {type(e).__name__}: {e}")
+                print(f"\n❌ Groq extraction failed: {type(e)._name_}: {e}")
                 print(f"🔄 Falling back to regex extraction")
                 # Fallback to regex extraction
         
