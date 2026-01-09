@@ -1,0 +1,36 @@
+APOLLO HOSPITALS
+Out-Patient Department (OPD) Note
+Date: 08-Jan-2026
+
+PATIENT DETAILS:
+Name: Rahul Kumar
+UHID: HOSP-2025-001
+Age: 45 years | Gender: Male
+Phone: 9876543210
+ABHA ID: 91-2233-4455-66
+
+VITALS:
+Blood Pressure: 130/90 mmHg
+Pulse Rate: 78 bpm
+Temperature: 98.6°F
+Weight: 72 kg
+Height: 170 cm
+
+CHIEF COMPLAINT:
+Increased thirst, frequent urination, fatigue for past 2 weeks
+
+DIAGNOSIS:
+Type 2 Diabetes Mellitus (Newly diagnosed)
+
+MEDICATIONS PRESCRIBED:
+1. Metformin 500mg - BD (After meals)
+2. Glimepiride 1mg - OD (Before breakfast)
+
+ADVICE:
+- Regular blood sugar monitoring
+- Follow diabetic diet plan
+- Exercise 30 minutes daily
+- Follow up after 2 weeks
+
+Doctor's Signature: Dr. Sharma
+Registration No: MH-12345

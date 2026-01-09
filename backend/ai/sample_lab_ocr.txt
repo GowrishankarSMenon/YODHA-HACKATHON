@@ -1,0 +1,34 @@
+MAX SUPER SPECIALITY HOSPITAL
+Laboratory Report
+
+Report Date: 07-Jan-2026
+Sample Collected: 06-Jan-2026 08:30 AM
+
+PATIENT INFORMATION:
+Name: Priya Sharma
+UHID: HOSP-2025-002
+Age: 32 years | Gender: Female
+Referring Doctor: Dr. Mehta
+
+TEST: COMPLETE BLOOD COUNT (CBC)
+
+RESULTS:
+Hemoglobin: 11.2 g/dL (Normal: 12-15 g/dL) LOW
+WBC Count: 8,500 cells/cumm (Normal: 4000-11000)
+RBC Count: 4.2 million/cumm (Normal: 4.5-5.5)
+Platelet Count: 2.5 lakh/cumm (Normal: 1.5-4.5 lakh)
+ESR: 28 mm/hr (Normal: 0-20) HIGH
+
+DIFFERENTIAL COUNT:
+Neutrophils: 62% (Normal: 40-75%)
+Lymphocytes: 30% (Normal: 20-45%)
+Monocytes: 6% (Normal: 2-10%)
+Eosinophils: 2% (Normal: 1-6%)
+
+REMARKS:
+Mild anemia detected. Iron supplementation recommended.
+Slightly elevated ESR may indicate inflammation.
+
+Lab Technician: Ramesh K.
+Pathologist: Dr. Gupta MD
+Lab No: LAB/2026/00234

@@ -1,7 +1,8 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
 pydantic
+<<<<<<< HEAD
 torch
 transformers
 sentencepiece
@@ -11,3 +12,7 @@ numpy
 pdf2image
 python-multipart
 protobuf
+=======
+Pillow
+pdf2image
+>>>>>>> b292d19d49360d5049397ba29c813bbc6bc45d12
