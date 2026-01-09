@@ -464,7 +464,7 @@ function displayResults(data) {
 
     // Display STRUCTURED DATA
     const structuredDiv = document.getElementById('structuredOutput');
-    structuredDiv.innerHTML = renderStructuredData(data.structured_data, data.document_type);
+    structuredDiv.innerHTML = renderStructuredData(data.extracted_data, data.document_type);
 
     // Display confidence
     const confidence = Math.round(data.confidence_score * 100);
@@ -488,6 +488,17 @@ function displayResults(data) {
 }
 
 function renderStructuredData(data, docType) {
+    console.log('🎨 renderStructuredData() called:', { data, docType });
+    
+    // Safety check: ensure data exists
+    if (!data || typeof data !== 'object') {
+        console.error('❌ Invalid data passed to renderStructuredData:', data);
+        return `<div class="field-group">
+            <div class="field-label">Error</div>
+            <div class="field-value">No extracted data available</div>
+        </div>`;
+    }
+    
     let html = `<div class="field-group">
         <div class="field-label">Document Type</div>
         <div class="field-value">${docType}</div>

@@ -5,6 +5,7 @@ Supports both regex-based and Groq LLM-based extraction.
 """
 import re
 import os
+import json
 from typing import Dict, Any, List
 from datetime import datetime
 
@@ -43,30 +44,52 @@ class LLMExtractor:
         Returns:
             Structured JSON with extracted fields (key-value pairs if using Groq)
         """
+        print("\n" + "#"*80)
+        print("📊 LLM EXTRACTOR - extract_structured_data() called")
+        print("#"*80)
+        print(f"📄 OCR Text Length: {len(ocr_text)}")
+        print(f"📋 Document Type (input): {document_type}")
+        print(f"🔧 use_groq param: {use_groq}")
+        print(f"🔧 USE_GROQ global: {USE_GROQ}")
+        print(f"🔧 GROQ_AVAILABLE: {GROQ_AVAILABLE}")
+        
         # Determine if we should use Groq
         should_use_groq = use_groq if use_groq is not None else USE_GROQ
+        print(f"✅ should_use_groq: {should_use_groq}")
         
         # Auto-detect document type if not specified
         if document_type == "AUTO":
             document_type = LLMExtractor._detect_document_type(ocr_text)
+            print(f"🔍 Auto-detected Document Type: {document_type}")
         
         # Use Groq extraction if enabled and available
         if should_use_groq and GROQ_AVAILABLE:
             try:
-                return LLMExtractor._extract_with_groq(ocr_text, document_type)
+                print(f"\n🚀 Using GROQ extraction method")
+                result = LLMExtractor._extract_with_groq(ocr_text, document_type)
+                print(f"✅ Groq extraction returned: {type(result)}")
+                print(f"📊 Groq result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
+                return result
             except Exception as e:
-                print(f"Groq extraction failed, falling back to regex: {e}")
+                print(f"\n❌ Groq extraction failed: {type(e).__name__}: {e}")
+                print(f"🔄 Falling back to regex extraction")
                 # Fallback to regex extraction
         
         # Route to appropriate regex-based extractor (original method)
+        print(f"\n🔧 Using REGEX extraction method for {document_type}")
         if document_type == "OPD_NOTE":
-            return LLMExtractor._extract_opd_note(ocr_text)
+            result = LLMExtractor._extract_opd_note(ocr_text)
         elif document_type == "LAB_REPORT":
-            return LLMExtractor._extract_lab_report(ocr_text)
+            result = LLMExtractor._extract_lab_report(ocr_text)
         elif document_type == "PRESCRIPTION":
-            return LLMExtractor._extract_prescription(ocr_text)
+            result = LLMExtractor._extract_prescription(ocr_text)
         else:
-            return LLMExtractor._extract_generic(ocr_text)
+            result = LLMExtractor._extract_generic(ocr_text)
+        
+        print(f"✅ Regex extraction returned: {type(result)}")
+        print(f"📊 Regex result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
+        print("#"*80)
+        return result
     
     @staticmethod
     def _extract_with_groq(ocr_text: str, document_type: str) -> Dict[str, Any]:
@@ -80,8 +103,20 @@ class LLMExtractor:
         Returns:
             Dictionary of extracted key-value pairs
         """
+        print(f"\n🔗 _extract_with_groq() - Getting Groq service...")
         groq_service = get_groq_service()
+        print(f"✅ Groq service obtained: {type(groq_service)}")
+        
+        print(f"\n📞 Calling groq_service.extract_key_value_pairs()...")
         extracted_data = groq_service.extract_key_value_pairs(ocr_text, document_type)
+        
+        print(f"\n✅ Received data from Groq service:")
+        print(f"   Type: {type(extracted_data)}")
+        print(f"   Is None: {extracted_data is None}")
+        if extracted_data is not None:
+            print(f"   Keys: {list(extracted_data.keys()) if isinstance(extracted_data, dict) else 'Not a dict'}")
+            print(f"   Content: {json.dumps(extracted_data, indent=2) if isinstance(extracted_data, dict) else str(extracted_data)}")
+        
         return extracted_data
     
     @staticmethod
@@ -250,9 +285,15 @@ class LLMExtractor:
         Returns:
             Confidence score (0.0 to 1.0)
         """
+        print(f"\n📊 calculate_confidence() called")
+        print(f"   Data type: {type(extracted_data)}")
+        print(f"   Data is None: {extracted_data is None}")
+        print(f"   Document type: {document_type}")
+        
         # Detect if this is Groq key-value format (flat with human-readable keys)
         # vs regex format (nested with technical keys)
         is_groq_format = LLMExtractor._is_groq_format(extracted_data)
+        print(f"   Is Groq format: {is_groq_format}")
         
         if is_groq_format:
             return LLMExtractor._calculate_groq_confidence(extracted_data, document_type)

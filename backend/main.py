@@ -227,26 +227,49 @@ async def extract_with_template(file: UploadFile = File(...)):
         - extraction_method: "groq" or "regex" (which method was used)
     """
     try:
+        print("\n" + "*"*80)
+        print("🌐 API ENDPOINT - /api/extract-with-template called")
+        print("*"*80)
+        
         # Step 1: Read file
+        print(f"\n📥 Step 1: Reading file '{file.filename}'...")
         file_content = await file.read()
+        print(f"✅ File read - Size: {len(file_content)} bytes")
         
         # Step 2: Perform OCR
+        print(f"\n🔍 Step 2: Performing OCR...")
         ocr_text = perform_ocr(file_content, file.filename)
+        print(f"✅ OCR completed - Text length: {len(ocr_text)} characters")
+        print(f"📝 OCR text preview (first 200 chars): {ocr_text[:200]}...")
         
         # Step 3: LLM extraction with Groq (or fallback to regex)
+        print(f"\n🤖 Step 3: Extracting structured data with LLM...")
         extracted_data = LLMExtractor.extract_structured_data(ocr_text, "AUTO")
+        print(f"\n✅ LLM extraction completed")
+        print(f"   Type: {type(extracted_data)}")
+        print(f"   Is None: {extracted_data is None}")
+        if extracted_data:
+            print(f"   Keys: {list(extracted_data.keys()) if isinstance(extracted_data, dict) else 'Not a dict'}")
+            print(f"   Number of fields: {len(extracted_data) if isinstance(extracted_data, dict) else 0}")
+        
         detected_type = LLMExtractor._detect_document_type(ocr_text)
+        print(f"✅ Document type detected: {detected_type}")
         
         # Step 4: Calculate confidence
+        print(f"\n📊 Step 4: Calculating confidence score...")
         confidence_score = LLMExtractor.calculate_confidence(extracted_data, detected_type)
+        print(f"✅ Confidence score: {confidence_score}")
+        
         status_value = LLMExtractor.determine_status(confidence_score)
+        print(f"✅ Status: {status_value}")
         
         # Determine which extraction method was used
         from ai.llm_extractor import GROQ_AVAILABLE, USE_GROQ
         extraction_method = "groq" if (USE_GROQ and GROQ_AVAILABLE) else "regex"
+        print(f"\n🔬 Extraction method: {extraction_method}")
         
         # Return key-value pairs format
-        return {
+        response_data = {
             "success": True,
             "extraction_method": extraction_method,
             "raw_ocr": ocr_text,
@@ -257,7 +280,25 @@ async def extract_with_template(file: UploadFile = File(...)):
             "processed_at": datetime.now().isoformat() + "Z"
         }
         
+        print(f"\n📤 Step 5: Preparing response...")
+        print(f"   Response keys: {list(response_data.keys())}")
+        print(f"   Response extracted_data type: {type(response_data['extracted_data'])}")
+        print(f"   Response extracted_data is None: {response_data['extracted_data'] is None}")
+        print("*"*80)
+        print("✅ API REQUEST COMPLETED SUCCESSFULLY")
+        print("*"*80 + "\n")
+        
+        return response_data
+        
     except Exception as e:
+        import traceback
+        print(f"\n❌ ERROR in /api/extract-with-template")
+        print(f"❌ Error type: {type(e).__name__}")
+        print(f"❌ Error message: {str(e)}")
+        print(f"❌ Traceback:")
+        traceback.print_exc()
+        print("*"*80 + "\n")
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Extraction failed: {str(e)}"

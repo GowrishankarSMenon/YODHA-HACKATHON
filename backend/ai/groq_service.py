@@ -45,10 +45,23 @@ class GroqService:
         Returns:
             Dictionary of extracted key-value pairs
         """
+        print("\n" + "="*80)
+        print("🔍 GROQ SERVICE - extract_key_value_pairs() called")
+        print("="*80)
+        print(f"📄 Input OCR Text Length: {len(ocr_text)} characters")
+        print(f"📋 Document Type: {document_type}")
+        print(f"📝 First 200 chars of OCR: {ocr_text[:200]}...")
+        
         # Build the prompt based on document type
         prompt = self._build_extraction_prompt(ocr_text, document_type)
+        print(f"\n✉️  Prompt Built - Length: {len(prompt)} characters")
         
         try:
+            print("\n🚀 Calling Groq API...")
+            print(f"   Model: {self.model}")
+            print(f"   Temperature: {self.temperature}")
+            print(f"   Max Tokens: {self.max_tokens}")
+            
             # Call Groq API
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -67,14 +80,39 @@ class GroqService:
                 response_format={"type": "json_object"}
             )
             
+            print("\n✅ Groq API Response Received")
+            
             # Parse the response
             result = response.choices[0].message.content
+            print(f"\n📦 Raw Response Content Type: {type(result)}")
+            print(f"📦 Raw Response Content Length: {len(result) if result else 0}")
+            print(f"📦 Raw Response (first 500 chars): {result[:500] if result else 'None'}")
+            
+            print("\n🔄 Parsing JSON...")
             extracted_data = json.loads(result)
+            
+            print(f"\n✅ JSON Parsed Successfully!")
+            print(f"📊 Extracted Data Type: {type(extracted_data)}")
+            print(f"📊 Extracted Data Keys: {list(extracted_data.keys()) if isinstance(extracted_data, dict) else 'Not a dict'}")
+            print(f"📊 Number of Fields: {len(extracted_data) if isinstance(extracted_data, dict) else 0}")
+            print(f"📊 Full Extracted Data: {json.dumps(extracted_data, indent=2)}")
+            print("="*80)
             
             return extracted_data
             
+        except json.JSONDecodeError as je:
+            print(f"\n❌ JSON Decode Error: {je}")
+            print(f"❌ Failed to parse: {result[:500] if result else 'No result'}")
+            print("="*80)
+            # Return fallback structure
+            return {
+                "error": f"JSON decode error: {str(je)}",
+                "raw_text": ocr_text[:200]  # First 200 chars for reference
+            }
         except Exception as e:
-            print(f"Groq API error: {e}")
+            print(f"\n❌ Groq API Error: {type(e).__name__}: {e}")
+            print(f"❌ Full Error: {repr(e)}")
+            print("="*80)
             # Return fallback structure
             return {
                 "error": str(e),
