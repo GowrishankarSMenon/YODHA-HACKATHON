@@ -2,17 +2,11 @@ fastapi
 uvicorn[standard]
 python-multipart
 pydantic
-<<<<<<< HEAD
-torch
-transformers
-sentencepiece
-opencv-python
-pillow
-numpy
-pdf2image
-python-multipart
-protobuf
-=======
 Pillow
 pdf2image
->>>>>>> b292d19d49360d5049397ba29c813bbc6bc45d12
+transformers
+torch
+opencv-python
+numpy
+sentencepiece
+protobuf

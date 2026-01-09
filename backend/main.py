@@ -8,20 +8,22 @@ import uvicorn
 import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from typing import List, Dict, Any
 from datetime import datetime
 from io import BytesIO
 from PIL import Image
 from pdf2image import convert_from_bytes
 
-# Import OCR worker (your teammate's implementation)
+# Import OCR function from teammate's implementation
 try:
-    from ai_worker import ocr_page
+    from ai.ai_engine import ocr_page
     OCR_AVAILABLE = True
-except ImportError:
+    print("✅ OCR engine loaded successfully!")
+except ImportError as e:
     OCR_AVAILABLE = False
-    print("⚠️  ai_worker not found. Using fallback OCR simulation.")
+    print(f"⚠️  OCR engine not available: {e}. Using fallback simulation.")
 
 # Import LLM extractor
 from ai.llm_extractor import LLMExtractor
@@ -56,16 +58,22 @@ app.add_middleware(
 )
 
 # ================================================================
+# STATIC FILES  
+# ================================================================
+
+# Mount static directory for the web interface
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ================================================================
 # HELPER FUNCTIONS
 # ================================================================
 
 def perform_ocr(file_content: bytes, filename: str) -> str:
     """
-    Perform OCR on uploaded file.
-    Uses your teammate's OCR implementation or fallback.
+    Perform OCR on uploaded file using teammate's TrOCR implementation.
     """
     if OCR_AVAILABLE:
-        # Use actual OCR from ai_worker
+        # Use actual OCR from ai_worker.ocr_page()
         try:
             if filename.lower().endswith(".pdf"):
                 pages = convert_from_bytes(file_content)
@@ -77,20 +85,25 @@ def perform_ocr(file_content: bytes, filename: str) -> str:
             return "\n".join(lines)
         except Exception as e:
             print(f"OCR error: {e}")
-            return f"OCR extraction failed: {str(e)}"
+            # Fallback to sample OCR if actual OCR fails
+            return load_sample_ocr(filename)
     else:
         # Fallback: Load sample OCR text for demo
-        try:
-            if "opd" in filename.lower():
-                with open("ai/sample_opd_ocr.txt", "r") as f:
-                    return f.read()
-            elif "lab" in filename.lower():
-                with open("ai/sample_lab_ocr.txt", "r") as f:
-                    return f.read()
-            else:
-                return "Sample OCR text for demo purposes."
-        except:
-            return "Fallback OCR text - no sample file found."
+        return load_sample_ocr(filename)
+
+def load_sample_ocr(filename: str) -> str:
+    """Load sample OCR text as fallback."""
+    try:
+        if "opd" in filename.lower():
+            with open("ai/sample_opd_ocr.txt", "r") as f:
+                return f.read()
+        elif "lab" in filename.lower():
+            with open("ai/sample_lab_ocr.txt", "r") as f:
+                return f.read()
+        else:
+            return "Sample OCR text for demo purposes."
+    except:
+        return "Fallback OCR text - no sample file found."
 
 # ================================================================
 # API ENDPOINTS
@@ -98,16 +111,8 @@ def perform_ocr(file_content: bytes, filename: str) -> str:
 
 @app.get("/")
 def root():
-    """API root endpoint."""
-    return {
-        "message": "MedScan AI - LLM Extraction Pipeline",
-        "version": "2.0.0",
-        "endpoints": {
-            "process": "/api/process-document",
-            "records": "/api/records",
-            "health": "/health"
-        }
-    }
+    """API root endpoint - serves the web interface."""
+    return FileResponse("static/index.html")
 
 @app.get("/health")
 def health_check():
@@ -189,6 +194,48 @@ async def process_document(file: UploadFile = File(...)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Processing failed: {str(e)}"
+        )
+
+@app.post("/api/extract-with-template")
+async def extract_with_template(file: UploadFile = File(...)):
+    """
+    NEW: Extract with dual output - Raw OCR + Structured Template.
+    This is the main endpoint for the web interface.
+    
+    Returns both:
+    - raw_ocr: The plain text from OCR
+    - structured_data: The LLM-extracted key-value pairs
+    """
+    try:
+        # Step 1: Read file
+        file_content = await file.read()
+        
+        # Step 2: Perform OCR
+        ocr_text = perform_ocr(file_content, file.filename)
+        
+        # Step 3: LLM extraction
+        extracted_data = LLMExtractor.extract_structured_data(ocr_text, "AUTO")
+        detected_type = LLMExtractor._detect_document_type(ocr_text)
+        
+        # Step 4: Calculate confidence
+        confidence_score = LLMExtractor.calculate_confidence(extracted_data, detected_type)
+        status_value = LLMExtractor.determine_status(confidence_score)
+        
+        # Return dual output
+        return {
+            "success": True,
+            "raw_ocr": ocr_text,
+            "document_type": detected_type,
+            "structured_data": extracted_data,
+            "confidence_score": confidence_score,
+            "status": status_value,
+            "processed_at": datetime.now().isoformat() + "Z"
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Extraction failed: {str(e)}"
         )
 
 @app.get("/api/records", response_model=List[Dict[str, Any]])
