@@ -1,11 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedScan AI - Document Extraction</title>
-    
+    <title>MedScan AI - Patient Record</title>
+
     <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --accent: #20c997;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --light: #f8f9fa;
+            --dark: #343a40;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,541 +24,547 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            color: var(--dark);
             min-height: 100vh;
-            padding: 20px;
         }
 
         .container {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
+            padding: 20px;
         }
 
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .upload-section {
+        /* Header */
+        header {
             background: white;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
             margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .upload-box {
-            border: 3px dashed #667eea;
+        .logo {
+            font-size: 1.5em;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Upload Section */
+        .upload-area {
+            background: white;
+            border: 2px dashed #cbd5e0;
             border-radius: 12px;
             padding: 40px;
             text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--primary);
             background: #f8f9ff;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .upload-box:hover {
-            background: #eef0ff;
-            border-color: #764ba2;
-        }
-
-        .upload-box.dragover {
-            background: #e3e5ff;
-            border-color: #5a67d8;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        .upload-label {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            cursor: pointer;
         }
 
         .upload-icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-            color: #667eea;
-        }
-
-        .upload-text {
-            font-size: 1.2em;
-            color: #333;
+            font-size: 3em;
+            color: #a0aec0;
             margin-bottom: 10px;
         }
 
-        .upload-hint {
-            font-size: 0.9em;
-            color: #666;
-        }
-
-        .process-btn {
-            margin-top: 20px;
-            padding: 15px 40px;
-            font-size: 1.1em;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s;
+        /* Form Section - Hidden Initially */
+        #recordForm {
             display: none;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
         }
 
-        .process-btn:hover {
-            background: #5a67d8;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        .form-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            padding: 30px;
         }
 
-        .process-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .process-btn.show {
-            display: inline-block;
-        }
-
-        .loading {
-            text-align: center;
-            color: #667eea;
+        .section-title {
             font-size: 1.2em;
-            margin-top: 20px;
-            display: none;
-        }
-
-        .loading.show {
-            display: block;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .results-container {
-            display: none;
-            gap: 20px;
-        }
-
-        .results-container.show {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-        }
-
-        @media (max-width: 968px) {
-            .results-container.show {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .result-box {
-            background: white;
-            padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            font-weight: 700;
             margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #eee;
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 10px;
+            color: var(--secondary);
         }
 
-        .result-title {
-            font-size: 1.4em;
-            color: #333;
-            font-weight: bold;
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
         }
 
-        .badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: bold;
-        }
-
-        .badge.auto-approved {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .badge.pending {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .badge.rejected {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .ocr-output {
-            background: #f5f5f5;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-            white-space: pre-wrap;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            line-height: 1.6;
-            max-height: 600px;
-            overflow-y: auto;
-            color: #333;
-        }
-
-        .structured-output {
-            background: #f5f5f5;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #764ba2;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-
-        .field-group {
-            margin-bottom: 15px;
-        }
-
-        .field-label {
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 5px;
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
             font-size: 0.9em;
-            text-transform: uppercase;
+            color: #4a5568;
         }
 
-        .field-value {
-            background: white;
-            padding: 10px;
-            border-radius: 6px;
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
             font-size: 1em;
-            color: #333;
+            transition: all 0.2s;
         }
 
-        .medications-list {
-            display: flex;
-            flex-direction: column;
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* Confidence Highlighting */
+        .low-confidence {
+            border-color: var(--warning);
+            background-color: #fffaf0;
+        }
+
+        .missing-field {
+            border-color: var(--danger);
+            background-color: #fff5f5;
+        }
+
+        .confidence-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            font-size: 0.75em;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .badge-high {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .badge-low {
+            background: #feebc8;
+            color: #744210;
+        }
+
+        .badge-missing {
+            background: #fed7d7;
+            color: #822727;
+        }
+
+        /* Medications List */
+        .med-item {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .med-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
             gap: 10px;
         }
 
-        .medication-item {
-            background: white;
-            padding: 12px;
-            border-radius: 6px;
-            border-left: 3px solid #28a745;
-        }
-
-        .copy-btn {
-            padding: 8px 16px;
-            background: #28a745;
-            color: white;
+        .btn {
+            padding: 12px 24px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.3s;
+            transition: all 0.2s;
         }
 
-        .copy-btn:hover {
-            background: #218838;
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            width: 100%;
         }
 
-        .confidence-bar {
-            margin-top: 15px;
-            padding: 15px;
-            background: #f0f0f0;
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        .ocr-preview {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
             border-radius: 8px;
+            height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
         }
 
-        .confidence-label {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 0.9em;
-        }
-
-        .progress-bar {
-            height: 12px;
-            background: #e0e0e0;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #28a745, #20c997);
-            transition: width 0.5s ease;
-        }
-
-        .error-box {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
             display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
         }
 
-        .error-box.show {
-            display: block;
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body>
 
-<div class="container">
-    <div class="header">
-        <h1>🏥 MedScan AI</h1>
-        <p>Medical Document Extraction Pipeline - OCR + LLM Template Mapping</p>
-    </div>
+    <div class="container">
+        <header>
+            <div class="logo">🏥 MedScan AI</div>
+            <div>Staff Portal</div>
+        </header>
 
-    <div class="upload-section">
-        <div class="upload-box" id="uploadBox">
-            <label for="fileInput" class="upload-label">
-                <div class="upload-icon">📄</div>
-                <div class="upload-text">Click to upload or drag & drop</div>
-                <div class="upload-hint">Supports PDF, JPG, PNG (Medical documents, prescriptions, lab reports)</div>
-            </label>
-            <input type="file" id="fileInput" accept="image/*,application/pdf">
-        </div>
-        <button class="process-btn" id="processBtn" onclick="processDocument()">
-            ⚡ Extract & Process Document
-        </button>
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            Processing with OCR + LLM Extraction...
-        </div>
-        <div class="error-box" id="errorBox"></div>
-    </div>
-
-    <div class="results-container" id="resultsContainer">
-        <!-- OCR Output -->
-        <div class="result-box">
-            <div class="result-header">
-                <div class="result-title">📝 Raw OCR Output</div>
-                <button class="copy-btn" onclick="copyOCR()">📋 Copy</button>
-            </div>
-            <div class="ocr-output" id="ocrOutput"></div>
+        <!-- Upload Section -->
+        <div class="upload-area" id="dropZone">
+            <div class="upload-icon">📄</div>
+            <h2>Upload Medical Document</h2>
+            <p>Drag & drop PDF/Image or click to browse</p>
+            <input type="file" id="fileInput" hidden accept="image/*,application/pdf">
         </div>
 
-        <!-- Structured Template Output-->
-        <div class="result-box">
-            <div class="result-header">
-                <div class="result-title">🎯 Structured Template</div>
-                <span class="badge" id="statusBadge"></span>
-            </div>
-            <div class="structured-output" id="structuredOutput"></div>
-            <div class="confidence-bar">
-                <div class="confidence-label">
-                    <span>Confidence Score</span>
-                    <span id="confidenceValue">0%</span>
+        <!-- Main Form Interface -->
+        <div id="recordForm">
+            <!-- Left Column: Form -->
+            <div class="form-card">
+                <div class="section-title">Patient Record Template</div>
+
+                <!-- SECTION 1: Patient Information -->
+                <h3
+                    style="margin-top:20px; color:#667eea; font-size:1em; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">
+                    Patient Information</h3>
+
+                <div class="form-group">
+                    <label class="form-label">Patient ID (UHID)</label>
+                    <input type="text" class="form-control" id="patientId" placeholder="Enter patient ID">
                 </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="confidenceFill" style="width: 0%"></div>
+
+                <div class="form-group">
+                    <label class="form-label">Patient Name</label>
+                    <input type="text" class="form-control" id="patientName" placeholder="Enter patient name">
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                    <div class="form-group">
+                        <label class="form-label">Age</label>
+                        <input type="text" class="form-control" id="age" placeholder="Age">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <input type="text" class="form-control" id="gender" placeholder="M/F/Other">
+                    </div>
+                </div>
+
+                <!-- SECTION 2: Visit Details -->
+                <h3
+                    style="margin-top:30px; color:#667eea; font-size:1em; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">
+                    Visit Details</h3>
+
+                <div class="form-group">
+                    <label class="form-label">Visit Date</label>
+                    <input type="date" class="form-control" id="visitDate">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Doctor Name</label>
+                    <input type="text" class="form-control" id="doctorName" placeholder="Enter doctor name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Chief Complaint</label>
+                    <textarea class="form-control" id="chiefComplaint" rows="2"
+                        placeholder="Primary complaint or reason for visit"></textarea>
+                </div>
+
+                <!-- SECTION 3: Vitals -->
+                <h3
+                    style="margin-top:30px; color:#667eea; font-size:1em; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">
+                    Vitals</h3>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                    <div class="form-group">
+                        <label class="form-label">Blood Pressure</label>
+                        <input type="text" class="form-control" id="bloodPressure" placeholder="e.g. 120/80">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Pulse</label>
+                        <input type="text" class="form-control" id="pulse" placeholder="e.g. 72 bpm">
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px;">
+                    <div class="form-group">
+                        <label class="form-label">Temperature</label>
+                        <input type="text" class="form-control" id="temperature" placeholder="e.g. 98.6°F">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Weight</label>
+                        <input type="text" class="form-control" id="weight" placeholder="e.g. 70 kg">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">SpO2</label>
+                        <input type="text" class="form-control" id="spo2" placeholder="e.g. 98%">
+                    </div>
+                </div>
+
+                <!-- SECTION 4: Clinical Details -->
+                <h3
+                    style="margin-top:30px; color:#667eea; font-size:1em; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">
+                    Clinical Details</h3>
+
+                <div class="form-group">
+                    <label class="form-label">Diagnosis</label>
+                    <textarea class="form-control" id="diagnosis" rows="2" placeholder="Primary diagnosis"></textarea>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                    <div class="form-group">
+                        <label class="form-label">Test Name</label>
+                        <input type="text" class="form-control" id="testName" placeholder="Lab test name">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Test Date</label>
+                        <input type="date" class="form-control" id="testDate">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Next Visit Date</label>
+                    <input type="date" class="form-control" id="nextVisitDate">
+                </div>
+
+                <!-- SECTION 5: Medications -->
+                <div class="section-title" style="margin-top:30px;">Medications</div>
+                <div id="medicationList">
+                    <!-- Dynamic Med Items -->
+                </div>
+
+                <button class="btn btn-primary" onclick="submitToConsole()">
+                    ✅ Submit Verified Record
+                </button>
+            </div>
+
+            <!-- Right Column: Context -->
+            <div class="form-card">
+                <div class="section-title">Source OCR Text</div>
+                <div class="ocr-preview" id="ocrPreview">
+                    Upload a document to see source text here...
+                </div>
+
+                <div style="margin-top:20px;">
+                    <div class="section-title">Status</div>
+                    <div id="statusInfo">Waiting for upload...</div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-let selectedFile = null;
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <h3 style="margin-top:20px; color:var(--dark)">Extracting Data...</h3>
+    </div>
 
-// File input handling
-const fileInput = document.getElementById('fileInput');
-const uploadBox = document.getElementById('uploadBox');
-const processBtn = document.getElementById('processBtn');
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
 
-fileInput.addEventListener('change', (e) => {
-    selectedFile = e.target.files[0];
-    if (selectedFile) {
-        uploadBox.querySelector('.upload-text').textContent = `✓ ${selectedFile.name}`;
-        processBtn.classList.add('show');
-    }
-});
-
-// Drag and drop
-uploadBox.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadBox.classList.add('dragover');
-});
-
-uploadBox.addEventListener('dragleave', () => {
-    uploadBox.classList.remove('dragover');
-});
-
-uploadBox.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadBox.classList.remove('dragover');
-    selectedFile = e.dataTransfer.files[0];
-    if (selectedFile) {
-        uploadBox.querySelector('.upload-text').textContent = `✓ ${selectedFile.name}`;
-        processBtn.classList.add('show');
-    }
-});
-
-async function processDocument() {
-    if (!selectedFile) {
-        showError('Please select a file first!');
-        return;
-    }
-
-    // Show loading
-    document.getElementById('loading').classList.add('show');
-    document.getElementById('resultsContainer').classList.remove('show');
-    document.getElementById('errorBox').classList.remove('show');
-    processBtn.disabled = true;
-
-    // Prepare form data
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
-    try {
-        const response = await fetch('/api/extract-with-template', {
-            method: 'POST',
-            body: formData
+        // Drag & Drop Handlers
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
         });
+        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
 
-        if (!response.ok) {
-            throw new Error('Processing failed');
+        async function handleFile(file) {
+            if (!file) return;
+
+            // Show loading
+            document.getElementById('loading').style.display = 'flex';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/extract-with-template', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                populateForm(data);
+            } catch (error) {
+                alert('Error processing file: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
         }
 
-        const data = await response.json();
-        displayResults(data);
-    } catch (error) {
-        showError('Error processing document: ' + error.message);
-    } finally {
-        document.getElementById('loading').classList.remove('show');
-        processBtn.disabled = false;
-    }
-}
+        function populateForm(data) {
+            document.getElementById('recordForm').style.display = 'grid';
+            document.getElementById('dropZone').style.display = 'none';
+            document.getElementById('ocrPreview').textContent = data.raw_ocr;
 
-function displayResults(data) {
-    // Show results container
-    document.getElementById('resultsContainer').classList.add('show');
+            const record = data.patient_record;
 
-    // Display RAW OCR
-    document.getElementById('ocrOutput').textContent = data.raw_ocr;
+            // Simple helper to set field value
+            const setField = (id, item) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.value = item.value || '';
+                }
+            };
 
-    // Display STRUCTURED DATA
-    const structuredDiv = document.getElementById('structuredOutput');
-    structuredDiv.innerHTML = renderStructuredData(data.extracted_data, data.document_type);
+            // Populate ALL fields - Patient Information  
+            setField('patientId', record.patient_id);
+            setField('patientName', record.patient_name);
+            setField('age', record.age);
+            setField('gender', record.gender);
 
-    // Display confidence
-    const confidence = Math.round(data.confidence_score * 100);
-    document.getElementById('confidenceValue').textContent = confidence + '%';
-    document.getElementById('confidenceFill').style.width = confidence + '%';
+            // Visit Details
+            setField('visitDate', record.visit_date);
+            setField('doctorName', record.doctor_name);
+            setField('chiefComplaint', record.chief_complaint);
 
-    // Display status badge
-    const badge = document.getElementById('statusBadge');
-    badge.textContent = data.status.replace('_', ' ');
-    badge.className = 'badge';
-    if (data.status === 'AUTO_APPROVED') {
-        badge.classList.add('auto-approved');
-    } else if (data.status === 'PENDING_REVIEW') {
-        badge.classList.add('pending');
-    } else {
-        badge.classList.add('rejected');
-    }
+            // Vitals
+            setField('bloodPressure', record.blood_pressure);
+            setField('pulse', record.pulse);
+            setField('temperature', record.temperature);
+            setField('weight', record.weight);
+            setField('spo2', record.spo2);
 
-    // Scroll to results
-    document.getElementById('resultsContainer').scrollIntoView({ behavior: 'smooth' });
-}
+            // Clinical Details
+            setField('diagnosis', record.diagnosis);
+            setField('testName', record.test_name);
+            setField('testDate', record.test_date);
+            setField('nextVisitDate', record.next_visit_date);
 
-function renderStructuredData(data, docType) {
-    console.log('🎨 renderStructuredData() called:', { data, docType });
-    
-    // Safety check: ensure data exists
-    if (!data || typeof data !== 'object') {
-        console.error('❌ Invalid data passed to renderStructuredData:', data);
-        return `<div class="field-group">
-            <div class="field-label">Error</div>
-            <div class="field-value">No extracted data available</div>
-        </div>`;
-    }
-    
-    let html = `<div class="field-group">
-        <div class="field-label">Document Type</div>
-        <div class="field-value">${docType}</div>
-    </div>`;
+            // Medications
+            const medList = document.getElementById('medicationList');
+            medList.innerHTML = '';
+            if (record.medications && record.medications.length > 0) {
+                record.medications.forEach(med => {
+                    const medDiv = document.createElement('div');
+                    medDiv.className = 'med-item';
+                    medDiv.innerHTML = `
+                    <div class="med-row">
+                        <input type="text" class="form-control" value="${med.name}" placeholder="Med Name">
+                        <input type="text" class="form-control" value="${med.dosage || ''}" placeholder="Dosage">
+                        <input type="text" class="form-control" value="${med.frequency || ''}" placeholder="Freq">
+                    </div>
+                `;
+                    medList.appendChild(medDiv);
+                });
+            } else {
+                medList.innerHTML = '<div style="color:#666; font-style:italic;">No medications found.</div>';
+            }
 
-    for (const [key, value] of Object.entries(data)) {
-        if (key === 'medications' && Array.isArray(value)) {
-            html += `<div class="field-group">
-                <div class="field-label">Medications</div>
-                <div class="medications-list">`;
-            value.forEach(med => {
-                html += `<div class="medication-item">
-                    <strong>${med.name}</strong> - ${med.dose} (${med.frequency})
-                </div>`;
+            document.getElementById('statusInfo').innerHTML = `
+            <strong>Status:</strong> ${record.status}<br>
+            <strong>Processed:</strong> ${new Date().toLocaleTimeString()}
+        `;
+        }
+
+        // Global function for the Submit button
+        window.submitToConsole = function () {
+            const formData = {
+                // Patient Information
+                patient_id: document.getElementById('patientId').value,
+                patient_name: document.getElementById('patientName').value,
+                age: document.getElementById('age').value,
+                gender: document.getElementById('gender').value,
+
+                // Visit Details
+                visit_date: document.getElementById('visitDate').value,
+                doctor_name: document.getElementById('doctorName').value,
+                chief_complaint: document.getElementById('chiefComplaint').value,
+
+                // Vitals
+                blood_pressure: document.getElementById('bloodPressure').value,
+                pulse: document.getElementById('pulse').value,
+                temperature: document.getElementById('temperature').value,
+                weight: document.getElementById('weight').value,
+                spo2: document.getElementById('spo2').value,
+
+                // Clinical Details
+                diagnosis: document.getElementById('diagnosis').value,
+                test_name: document.getElementById('testName').value,
+                test_date: document.getElementById('testDate').value,
+                next_visit_date: document.getElementById('nextVisitDate').value,
+
+                // Medications
+                medications: []
+            };
+
+            // Collect medications
+            document.querySelectorAll('.med-item').forEach(item => {
+                const inputs = item.querySelectorAll('input');
+                formData.medications.push({
+                    name: inputs[0].value,
+                    dosage: inputs[1].value,
+                    frequency: inputs[2].value
+                });
             });
-            html += `</div></div>`;
-        } else if (typeof value === 'object' && !Array.isArray(value)) {
-            html += `<div class="field-group">
-                <div class="field-label">${formatLabel(key)}</div>
-                <div class="field-value">${JSON.stringify(value, null, 2)}</div>
-            </div>`;
-        } else {
-            html += `<div class="field-group">
-                <div class="field-label">${formatLabel(key)}</div>
-                <div class="field-value">${value}</div>
-            </div>`;
-        }
-    }
 
-    return html;
-}
+            console.log('%c 🚀 SUBMITTING PATIENT RECORD', 'background: #667eea; color: white; font-size: 16px; padding: 10px; border-radius: 4px;');
+            console.log('Final Form Data:', formData);
 
-function formatLabel(str) {
-    return str.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-}
+            // Count filled vs empty fields
+            const totalFields = Object.keys(formData).length - 1; // Exclude medications
+            const filledFields = Object.values(formData).filter(v => v && v !== '').length - 1;
+            console.log(`📊 Fields Status: ${filledFields}/${totalFields} fields filled`);
 
-function copyOCR() {
-    const text = document.getElementById('ocrOutput').textContent;
-    navigator.clipboard.writeText(text).then(() => {
-        alert('✓ OCR text copied to clipboard!');
-    });
-}
-
-function showError(message) {
-    const errorBox = document.getElementById('errorBox');
-    errorBox.textContent = message;
-    errorBox.classList.add('show');
-}
-</script>
+            alert('Record submitted! Check browser console for data.');
+        };
+    </script>
 
 </body>
+
 </html>

@@ -297,7 +297,9 @@ async def extract_with_template(file: UploadFile = File(...)):
             "extracted_data": extracted_data,  # Now contains key-value pairs if using Groq
             "confidence_score": confidence_score,
             "status": status_value,
-            "processed_at": datetime.now().isoformat() + "Z"
+            "processed_at": datetime.now().isoformat() + "Z",
+            # Standardized Patient Record
+            "patient_record": LLMExtractor.match_to_patient_record(extracted_data).dict()
         }
         
         print(f"\n📤 Step 5: Preparing response...")

@@ -228,9 +228,77 @@ Return ONLY a JSON object with a single key "Summary" containing the text summar
         except Exception as e:
             print(f"\n❌ Summary generation failed: {e}")
             return {
-                "Summary": f"Could not generate summary. Error: {str(e)}",
                 "Raw Text Preview": ocr_text[:500] + "..."
             }
+
+    def map_to_template(
+        self, 
+        extracted_data: Dict[str, Any], 
+        target_template: str = "PatientRecord"
+    ) -> Dict[str, Any]:
+        """
+        Map extracted data to a standardized template using Groq.
+        """
+        print("\n" + "="*80)
+        print("🔄 GROQ SERVICE - map_to_template() called")
+        print("="*80)
+        
+        prompt = f"""
+You are a medical data standardization expert.
+Your task is to map the following extracted data to a standardized 'PatientRecord' JSON template.
+
+INPUT DATA:
+{json.dumps(extracted_data, indent=2)}
+
+TARGET TEMPLATE STRUCTURE:
+{{
+  "patient_name": {{ "value": "Name", "confidence": "HIGH/LOW/MISSING" }},
+  "diagnosis": {{ "value": "Diagnosis", "confidence": "HIGH/LOW/MISSING" }},
+  "blood_pressure": {{ "value": "120/80", "confidence": "HIGH/LOW/MISSING" }},
+  "visit_date": {{ "value": "YYYY-MM-DD", "confidence": "HIGH/LOW/MISSING" }},
+  "medications": [
+    {{ "name": "Med Name", "dosage": "500mg", "frequency": "BD", "confidence": "HIGH" }}
+  ]
+}}
+
+INSTRUCTIONS:
+1. Map fields from INPUT DATA to the TARGET TEMPLATE.
+2. If a field is missing or has very low confidence in the input, set "value" to null and "confidence" to "MISSING" or "LOW".
+3. For medications, normalize the list.
+4. Return ONLY valid JSON matching the target template structure.
+"""
+
+        try:
+            print("\n🚀 Calling Groq API for template matching...")
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a precise data mapping assistant. Output valid JSON only."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.1,
+                max_tokens=1000,
+                response_format={"type": "json_object"}
+            )
+            
+            result = response.choices[0].message.content
+            print(f"\n✅ Template mapping received: {result[:100]}...")
+            
+            return json.loads(result)
+            
+        except Exception as e:
+            print(f"\n❌ Template mapping failed: {e}")
+            # Return empty structure on failure
+            return {{
+                "error": str(e)
+            }}
 
 
 # Singleton instance

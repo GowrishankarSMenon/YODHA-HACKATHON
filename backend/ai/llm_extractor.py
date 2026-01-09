@@ -8,6 +8,7 @@ import os
 import json
 from typing import Dict, Any, List
 from datetime import datetime
+from models.models import PatientRecord, PatientRecordItem, MedicationItem
 
 # Try to import Groq service (optional)
 try:
@@ -90,6 +91,135 @@ class LLMExtractor:
         print(f"📊 Regex result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
         print("#"*80)
         return result
+    
+    @staticmethod
+    def match_to_patient_record(extracted_data: Dict[str, Any]) -> PatientRecord:
+        """
+        Match extracted data to the standardized PatientRecord template.
+        Populates ALL fields, even if missing from extraction.
+        """
+        print("\n" + "#"*80)
+        print("🧬 LLM EXTRACTOR - match_to_patient_record() called")
+        print("#"*80)
+        
+        # Helper function to safely extract field with confidence
+        def extract_field(key_variants: list, default_confidence="MISSING") -> PatientRecordItem:
+            """Try multiple key variants and return PatientRecordItem."""
+            for key in key_variants:
+                value = extracted_data.get(key)
+                if value:
+                    # Determine confidence based on value quality
+                    conf = "HIGH" if len(str(value).strip()) > 2 else "LOW"
+                    return PatientRecordItem(value=str(value), confidence=conf)
+            # Not found - return MISSING
+            return PatientRecordItem(value=None, confidence="MISSING")
+        
+        # 1. Try to use Groq for intelligent mapping
+        if USE_GROQ and GROQ_AVAILABLE:
+            try:
+                print("🚀 Using Groq for template matching")
+                groq_service = get_groq_service()
+                
+                # Call Groq to map data
+                mapped_data = groq_service.map_to_template(extracted_data)
+                
+                # Transform medications list of dicts to list of MedicationItem models
+                meds = []
+                if "medications" in mapped_data and isinstance(mapped_data["medications"], list):
+                    for m in mapped_data["medications"]:
+                        meds.append(MedicationItem(
+                            name=m.get("name", "Unknown"),
+                            dosage=m.get("dosage"),
+                            frequency=m.get("frequency"),
+                            confidence=m.get("confidence", "HIGH")
+                        ))
+                
+                # Build comprehensive record from Groq mapping
+                record = PatientRecord(
+                    # Patient Information
+                    patient_id=PatientRecordItem(**mapped_data.get("patient_id", {"value": None, "confidence": "MISSING"})),
+                    patient_name=PatientRecordItem(**mapped_data.get("patient_name", {"value": None, "confidence": "MISSING"})),
+                    age=PatientRecordItem(**mapped_data.get("age", {"value": None, "confidence": "MISSING"})),
+                    gender=PatientRecordItem(**mapped_data.get("gender", {"value": None, "confidence": "MISSING"})),
+                    
+                    # Visit Details
+                    visit_date=PatientRecordItem(**mapped_data.get("visit_date", {"value": None, "confidence": "MISSING"})),
+                    doctor_name=PatientRecordItem(**mapped_data.get("doctor_name", {"value": None, "confidence": "MISSING"})),
+                    chief_complaint=PatientRecordItem(**mapped_data.get("chief_complaint", {"value": None, "confidence": "MISSING"})),
+                    
+                    # Vitals
+                    blood_pressure=PatientRecordItem(**mapped_data.get("blood_pressure", {"value": None, "confidence": "MISSING"})),
+                    pulse=PatientRecordItem(**mapped_data.get("pulse", {"value": None, "confidence": "MISSING"})),
+                    temperature=PatientRecordItem(**mapped_data.get("temperature", {"value": None, "confidence": "MISSING"})),
+                    weight=PatientRecordItem(**mapped_data.get("weight", {"value": None, "confidence": "MISSING"})),
+                    spo2=PatientRecordItem(**mapped_data.get("spo2", {"value": None, "confidence": "MISSING"})),
+                    
+                    # Clinical Details
+                    diagnosis=PatientRecordItem(**mapped_data.get("diagnosis", {"value": None, "confidence": "MISSING"})),
+                    test_name=PatientRecordItem(**mapped_data.get("test_name", {"value": None, "confidence": "MISSING"})),
+                    test_date=PatientRecordItem(**mapped_data.get("test_date", {"value": None, "confidence": "MISSING"})),
+                    next_visit_date=PatientRecordItem(**mapped_data.get("next_visit_date", {"value": None, "confidence": "MISSING"})),
+                    
+                    # Medications
+                    medications=meds,
+                    status="VERIFIED" if mapped_data.get("error") is None else "DRAFT"
+                )
+                print("✅ Successfully mapped to PatientRecord via Groq")
+                return record
+                
+            except Exception as e:
+                print(f"⚠️ Groq mapping failed: {e}. Falling back to manual mapping.")
+        
+        # 2. Fallback: Manual mapping (works with both Groq key-value and regex formats)
+        print("🔧 Performing manual/fallback mapping")
+        
+        # Extract vitals if nested
+        vitals = extracted_data.get("vitals", {})
+        
+        # Build comprehensive record
+        record = PatientRecord(
+            # Patient Information
+            patient_id=extract_field(["patient_id", "Patient ID", "UHID", "uhid"]),
+            patient_name=extract_field(["patient_name", "Patient Name", "name"]),
+            age=extract_field(["age", "Age"]),
+            gender=extract_field(["gender", "Gender", "sex", "Sex"]),
+            
+            # Visit Details
+            visit_date=extract_field(["visit_date", "Visit Date", "Date", "date"]),
+            doctor_name=extract_field(["doctor_name", "Doctor Name", "Doctor", "doctor"]),
+            chief_complaint=extract_field(["chief_complaint", "Chief Complaint", "Complaint"]),
+            
+            # Vitals
+            blood_pressure=extract_field(["blood_pressure", "Blood Pressure", "BP", vitals.get("blood_pressure")]),
+            pulse=extract_field(["pulse", "Pulse", "Heart Rate", vitals.get("pulse")]),
+            temperature=extract_field(["temperature", "Temperature", "Temp", vitals.get("temperature")]),
+            weight=extract_field(["weight", "Weight", vitals.get("weight")]),
+            spo2=extract_field(["spo2", "SpO2", "Oxygen Saturation", "oxygen_saturation"]),
+            
+            # Clinical Details
+            diagnosis=extract_field(["diagnosis", "Diagnosis", "dx"]),
+            test_name=extract_field(["test_name", "Test Name", "Test", "test"]),
+            test_date=extract_field(["test_date", "Test Date", "Report Date"]),
+            next_visit_date=extract_field(["next_visit_date", "Next Visit", "Follow Up", "follow_up"]),
+        )
+        
+        # Handle medications
+        raw_meds = extracted_data.get("medications", [])
+        med_items = []
+        if isinstance(raw_meds, list):
+            for m in raw_meds:
+                if isinstance(m, dict):
+                    med_items.append(MedicationItem(
+                        name=m.get("name", "Unknown"),
+                        dosage=m.get("dosage") or m.get("dose"),
+                        frequency=m.get("frequency"),
+                        confidence="HIGH"
+                    ))
+        
+        record.medications = med_items
+        
+        print(f"✅ Manual mapping complete - {len([f for f in record.dict().values() if f and getattr(f, 'value', None)])} fields populated")
+        return record
     
     @staticmethod
     def _extract_with_groq(ocr_text: str, document_type: str) -> Dict[str, Any]:
