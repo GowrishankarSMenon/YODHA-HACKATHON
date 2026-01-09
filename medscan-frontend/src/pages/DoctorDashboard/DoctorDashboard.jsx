@@ -3,8 +3,10 @@ import Timeline from './Timeline';
 import VerificationModal from './VerificationModal';
 import TopNavigation from './TopNavigation';
 import VitalsChart from './VitalsChart';
+import PatientSummaryCard from './PatientSummaryCard';
 import { adaptRecord } from './recordAdapter';
-import { User, Mail, Phone, MapPin, Calendar as CalendarIcon } from 'lucide-react';
+import { generatePatientSummary } from '../../services/aiSummaryService';
+import { User, Mail, Phone, MapPin, Calendar as CalendarIcon, Activity, Sparkles } from 'lucide-react';
 
 // Mock API data with 3 dummy records
 const TEAM_API_DATA = [
@@ -60,6 +62,32 @@ export default function DoctorDashboard() {
 
     // State for selected record
     const [selectedRecord, setSelectedRecord] = useState(null);
+
+    // AI Summary State
+    const [summary, setSummary] = useState(null);
+    const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+    const [summaryError, setSummaryError] = useState(null);
+
+    // Initial summary generation
+    React.useEffect(() => {
+        const fetchSummary = async () => {
+            if (records.length === 0) return;
+
+            setIsSummaryLoading(true);
+            setSummaryError(null);
+            try {
+                const result = await generatePatientSummary(records);
+                setSummary(result);
+            } catch (err) {
+                console.error("Dashboard Summary Error:", err);
+                setSummaryError(err.message);
+            } finally {
+                setIsSummaryLoading(false);
+            }
+        };
+
+        fetchSummary();
+    }, [records]);
 
     /**
      * Handle record selection from timeline
@@ -168,26 +196,30 @@ export default function DoctorDashboard() {
                         {/* Vitals Chart */}
                         <VitalsChart />
 
-                        {/* Empty State / Record Details */}
-                        {!selectedRecord && (
-                            <div className="bg-white rounded-xl shadow-lg p-12 animate-fade-in">
-                                <div className="text-center">
-                                    <div className="w-32 h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <svg className="w-16 h-16 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                        </svg>
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-gray-800 mb-3">No Record Selected</h3>
-                                    <p className="text-gray-600 text-lg max-w-md mx-auto">
-                                        Select a medical record from the timeline to verify AI-extracted data and view detailed information
-                                    </p>
-                                    <div className="mt-6 flex items-center justify-center gap-2 text-sm text-gray-500">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                        <span>High confidence records</span>
-                                        <div className="w-2 h-2 bg-amber-500 rounded-full ml-4"></div>
-                                        <span>Needs review</span>
-                                    </div>
+                        {/* AI Summary or Record Details */}
+                        {!selectedRecord ? (
+                            <PatientSummaryCard
+                                summary={summary}
+                                isLoading={isSummaryLoading}
+                                error={summaryError}
+                            />
+                        ) : (
+                            <div className="bg-white rounded-xl shadow-lg p-12 animate-fade-in relative overflow-hidden group">
+                                {/* Verification Modal triggers this view - it's handled by selectedRecord state */}
+                                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={handleCloseModal}
+                                        className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                                        title="Back to summary"
+                                    >
+                                        <Activity className="w-5 h-5" />
+                                    </button>
                                 </div>
+                                <div className="text-center">
+                                    <h3 className="text-xl font-bold text-gray-800">Reviewing Extracted Data</h3>
+                                    <p className="text-gray-500">Edit or verify the information extracted from the document.</p>
+                                </div>
+                                {/* The actual detail view would go here if not using a modal */}
                             </div>
                         )}
                     </div>
