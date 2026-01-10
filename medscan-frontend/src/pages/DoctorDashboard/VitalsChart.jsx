@@ -1,32 +1,61 @@
 import React from 'react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
-import { Heart, Droplet, Wind, TrendingUp, TrendingDown } from 'lucide-react';
+import { Heart, Weight, FileText, TrendingUp, TrendingDown } from 'lucide-react';
 
 /**
  * VitalsChart component with animated circular progress and trend indicators
+ * @param {Array} records - Patient's medical records containing vitals data
  */
-export default function VitalsChart() {
+export default function VitalsChart({ records = [] }) {
+    // Extract latest vitals from most recent record
+    const extractVitals = () => {
+        if (records.length === 0) {
+            return {
+                heartRate: 72,
+                weight: '--',
+                chiefComplaint: 'No records available'
+            };
+        }
+
+        // Get the latest record
+        const latest = records[0];
+        const data = latest.extracted_data;
+
+        // Extract heart rate (pulse)
+        let heartRate = 72;
+        if (data.vitals?.pulse) {
+            heartRate = parseInt(data.vitals.pulse) || 72;
+        }
+
+        // Extract weight
+        let weight = '--';
+        if (data.vitals?.weight) {
+            weight = data.vitals.weight;
+        }
+
+        // Extract chief complaint
+        let chiefComplaint = data.chief_complaint || 'Not specified';
+
+        return { heartRate, weight, chiefComplaint };
+    };
+
+    const { heartRate, weight, chiefComplaint } = extractVitals();
     // Mock historical data for sparklines
     const heartRateData = [
         { value: 68 }, { value: 70 }, { value: 72 }, { value: 71 },
         { value: 73 }, { value: 72 }, { value: 72 }
     ];
 
-    const bpData = [
-        { value: 118 }, { value: 120 }, { value: 122 }, { value: 120 },
-        { value: 119 }, { value: 121 }, { value: 120 }
-    ];
-
-    const oxygenData = [
-        { value: 97 }, { value: 98 }, { value: 98 }, { value: 97 },
-        { value: 98 }, { value: 99 }, { value: 98 }
+    const weightData = [
+        { value: 76 }, { value: 77 }, { value: 78 }, { value: 78 },
+        { value: 79 }, { value: 78 }, { value: 78 }
     ];
 
     const vitals = [
         {
             id: 'heart_rate',
             label: 'Heart Rate',
-            value: 72,
+            value: heartRate,
             unit: 'bpm',
             icon: Heart,
             color: 'red',
@@ -39,34 +68,34 @@ export default function VitalsChart() {
             normal: { min: 60, max: 100 },
         },
         {
-            id: 'blood_pressure',
-            label: 'Blood Pressure',
-            value: '120/80',
-            unit: 'mmHg',
-            icon: Droplet,
+            id: 'weight',
+            label: 'Weight',
+            value: weight,
+            unit: 'kg',
+            icon: Weight,
             color: 'blue',
             gradient: 'from-blue-500 to-cyan-500',
             bgGradient: 'from-blue-50 to-cyan-50',
             borderColor: 'border-blue-200',
-            trend: 'down',
-            trendValue: '-2%',
-            data: bpData,
-            normal: { systolic: 120, diastolic: 80 },
+            trend: 'stable',
+            trendValue: '+0%',
+            data: weightData,
+            isNumeric: false,
         },
         {
-            id: 'oxygen',
-            label: 'Oxygen Level',
-            value: 98,
-            unit: '%',
-            icon: Wind,
-            color: 'green',
-            gradient: 'from-green-500 to-emerald-500',
-            bgGradient: 'from-green-50 to-emerald-50',
-            borderColor: 'border-green-200',
-            trend: 'up',
-            trendValue: '+1%',
-            data: oxygenData,
-            normal: { min: 95, max: 100 },
+            id: 'chief_complaint',
+            label: 'Chief Complaint',
+            value: chiefComplaint,
+            unit: '',
+            icon: FileText,
+            color: 'purple',
+            gradient: 'from-purple-500 to-indigo-500',
+            bgGradient: 'from-purple-50 to-indigo-50',
+            borderColor: 'border-purple-200',
+            trend: 'stable',
+            trendValue: '',
+            data: [],
+            isText: true,
         },
     ];
 
@@ -125,30 +154,45 @@ export default function VitalsChart() {
 
                             {/* Value */}
                             <div className="mb-3">
-                                <div className="flex items-baseline gap-2">
-                                    <span className={`text-4xl font-bold ${getStatusColor(vital)}`}>
-                                        {vital.value}
-                                    </span>
-                                    <span className="text-sm font-medium text-gray-500">{vital.unit}</span>
-                                </div>
-                                <p className="text-sm font-medium text-gray-600 mt-1">{vital.label}</p>
+                                {vital.isText ? (
+                                    // Text display for chief complaint
+                                    <>
+                                        <p className="text-sm font-medium text-gray-600 mb-2">{vital.label}</p>
+                                        <p className="text-base font-semibold text-gray-800 leading-relaxed">
+                                            {vital.value}
+                                        </p>
+                                    </>
+                                ) : (
+                                    // Numeric display for heart rate and weight
+                                    <>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className={`text-4xl font-bold ${getStatusColor(vital)}`}>
+                                                {vital.value}
+                                            </span>
+                                            <span className="text-sm font-medium text-gray-500">{vital.unit}</span>
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-600 mt-1">{vital.label}</p>
+                                    </>
+                                )}
                             </div>
 
-                            {/* Sparkline Chart */}
-                            <div className="h-12 -mx-2">
-                                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                                    <LineChart data={vital.data}>
-                                        <Line
-                                            type="monotone"
-                                            dataKey="value"
-                                            stroke={vital.color === 'red' ? '#ef4444' : vital.color === 'blue' ? '#3b82f6' : '#10b981'}
-                                            strokeWidth={2}
-                                            dot={false}
-                                            animationDuration={1000}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
+                            {/* Sparkline Chart - only for numeric values */}
+                            {!vital.isText && vital.data && vital.data.length > 0 && (
+                                <div className="h-12 -mx-2">
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                                        <LineChart data={vital.data}>
+                                            <Line
+                                                type="monotone"
+                                                dataKey="value"
+                                                stroke={vital.color === 'red' ? '#ef4444' : vital.color === 'blue' ? '#3b82f6' : '#10b981'}
+                                                strokeWidth={2}
+                                                dot={false}
+                                                animationDuration={1000}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            )}
 
                             {/* Status Badge */}
                             <div className="mt-3 pt-3 border-t border-gray-200">

@@ -99,8 +99,8 @@ export default function VerificationModal({ record, isOpen, onClose }) {
                 <div className="flex items-center justify-between px-8 py-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50">
                     <div className="flex items-center gap-4">
                         <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg ${isHighConfidence
-                                ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                                : 'bg-gradient-to-br from-amber-500 to-orange-600'
+                            ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                            : 'bg-gradient-to-br from-amber-500 to-orange-600'
                             }`}>
                             {isHighConfidence ? (
                                 <CheckCircle className="w-8 h-8 text-white" />
@@ -112,8 +112,8 @@ export default function VerificationModal({ record, isOpen, onClose }) {
                             <h2 className="text-2xl font-bold text-gray-900">Verify Medical Record</h2>
                             <p className="text-sm text-gray-600 mt-1 flex items-center gap-2">
                                 <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${isHighConfidence
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-amber-100 text-amber-700'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-amber-100 text-amber-700'
                                     }`}>
                                     {Math.round((record?.confidence_score || 0) * 100)}% Confidence
                                 </span>
@@ -144,11 +144,23 @@ export default function VerificationModal({ record, isOpen, onClose }) {
                             </h3>
                         </div>
                         <div className="flex-1 overflow-auto p-8 flex items-center justify-center">
-                            <img
-                                src={record?.file_url}
-                                alt="Medical record scan"
-                                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl ring-1 ring-white/10"
-                            />
+                            {record?.file_url ? (
+                                <img
+                                    src={`http://localhost:5005${record.file_url}`}
+                                    alt="Medical record scan"
+                                    className="max-w-full max-h-full object-contain rounded-xl shadow-2xl ring-1 ring-white/10"
+                                    onError={(e) => {
+                                        e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect fill="%23f3f4f6" width="200" height="200"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%239ca3af" font-size="14">Image not found</text></svg>';
+                                    }}
+                                />
+                            ) : (
+                                <div className="text-center text-gray-400">
+                                    <svg className="w-24 h-24 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <p className="text-lg font-medium">No scan available</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 

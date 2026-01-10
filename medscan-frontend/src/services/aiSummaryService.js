@@ -94,8 +94,21 @@ async function generateDemoSummary(records) {
       if (!diagnoses.includes(data.diagnosis)) diagnoses.push(data.diagnosis);
     }
 
-    // Medication extraction
-    if (data.medication) {
+    // Medication extraction - handle both array and string formats
+    if (data.medications && Array.isArray(data.medications)) {
+      // Handle medications array format: [{name, dose, frequency}, ...]
+      data.medications.forEach(med => {
+        if (!medications.find(m => m.name === med.name)) {
+          medications.push({
+            name: med.name,
+            dosage: med.dose || "As directed",
+            frequency: med.frequency || "Daily",
+            purpose: data.diagnosis || "Medical condition"
+          });
+        }
+      });
+    } else if (data.medication) {
+      // Handle old string format
       const medNames = data.medication.split(', ');
       medNames.forEach(name => {
         if (!medications.find(m => m.name === name)) {
@@ -121,10 +134,35 @@ async function generateDemoSummary(records) {
     }
   });
 
+  // Generate personalized clinical insight based on patient data
+  let clinicalInsight = "";
+
+  if (diagnoses.length > 0) {
+    const primaryDiagnosis = diagnoses[0];
+    const hasMultipleConditions = diagnoses.length > 1;
+    const hasAlerts = alerts.length > 0 && alerts[0] !== "No urgent clinical alerts";
+    const medCount = medications.length;
+
+    // Build insight based on actual patient data
+    if (hasAlerts) {
+      clinicalInsight = `Patient with ${primaryDiagnosis}${hasMultipleConditions ? ' and comorbidities' : ''}. ${alerts[0]} requires attention. `;
+    } else {
+      clinicalInsight = `Patient managing ${primaryDiagnosis}${hasMultipleConditions ? ' with ' + (diagnoses.length - 1) + ' additional condition(s)' : ''}. `;
+    }
+
+    if (medCount > 0 && medications[0].name !== "Reviewing medications") {
+      clinicalInsight += `Currently on ${medCount} medication${medCount > 1 ? 's' : ''}. `;
+    }
+
+    clinicalInsight += "Continue monitoring and medication adherence.";
+  } else {
+    clinicalInsight = "Patient presenting for routine follow-up. No significant concerns identified at this time.";
+  }
+
   return {
     alerts: alerts.length > 0 ? [...new Set(alerts)] : ["No urgent clinical alerts"],
     diagnoses: diagnoses.length > 0 ? diagnoses : ["Routine Follow-up"],
     medications: medications.length > 0 ? medications : [{ name: "Reviewing medications", dosage: "N/A", frequency: "N/A", purpose: "N/A" }],
-    clinicalInsight: "Patient shows signs of chronic condition management with recent acute episodes. Careful monitoring of metabolic values and adherence to current antimicrobial therapy is advised."
+    clinicalInsight: clinicalInsight
   };
 }
