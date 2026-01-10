@@ -2,6 +2,7 @@ const express = require('express');
 const { MongoClient } = require('mongodb');
 const cors = require('cors');
 const path = require('path');
+const { decryptPatient, decryptRecord } = require('./encryption');
 require('dotenv').config();
 
 const app = express();
@@ -58,7 +59,10 @@ app.get('/api/patients', async (req, res) => {
             .project({ _id: 0 }) // Exclude MongoDB _id
             .toArray();
 
-        res.json(patients);
+        // Decrypt sensitive fields before sending to frontend
+        const decryptedPatients = patients.map(p => decryptPatient(p));
+
+        res.json(decryptedPatients);
     } catch (err) {
         console.error('Error fetching patients:', err);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -81,7 +85,10 @@ app.get('/api/patients/:uhid', async (req, res) => {
             return res.status(404).json({ error: 'Patient not found' });
         }
 
-        res.json(patient);
+        // Decrypt sensitive fields
+        const decryptedPatient = decryptPatient(patient);
+
+        res.json(decryptedPatient);
     } catch (err) {
         console.error('Error fetching patient:', err);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -112,9 +119,13 @@ app.get('/api/patients/:uhid/complete', async (req, res) => {
             .project({ _id: 0 })
             .toArray();
 
+        // Decrypt sensitive fields
+        const decryptedPatient = decryptPatient(patient);
+        const decryptedRecords = records.map(r => decryptRecord(r));
+
         res.json({
-            patient: patient,
-            records: records
+            patient: decryptedPatient,
+            records: decryptedRecords
         });
     } catch (err) {
         console.error('Error fetching complete patient data:', err);
@@ -134,7 +145,10 @@ app.get('/api/records/:patientId', async (req, res) => {
             .project({ _id: 0 })
             .toArray();
 
-        res.json(records);
+        // Decrypt sensitive fields
+        const decryptedRecords = records.map(r => decryptRecord(r));
+
+        res.json(decryptedRecords);
     } catch (err) {
         console.error('Error fetching records:', err);
         res.status(500).json({ error: 'Internal Server Error' });
