@@ -12,5 +12,6 @@ sentencepiece
 protobuf
 redis
 rq
-
-python-multipart
+groq
+python-dotenv
+pytesseract
