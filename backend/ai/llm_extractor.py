@@ -1,3 +1,5 @@
+llm_extractor.py:-
+
 """
 LLM-based extraction service for medical documents.
 Converts OCR extracted text into structured JSON format.
@@ -15,6 +17,7 @@ try:
     GROQ_AVAILABLE = True
 except Exception as e:
     GROQ_AVAILABLE = False
+    print(f"⚠ Groq service not available: {e}")
 
 USE_GROQ = os.getenv("USE_GROQ", "true").lower() == "true" and GROQ_AVAILABLE
 
@@ -47,8 +50,18 @@ class LLMExtractor:
                 return extracted_data
                 
             except Exception as e:
-                print(f"❌ Groq extraction failed: {e}")
-                return LLMExtractor._fallback_extraction(ocr_text, document_type)
+                print(f"\n❌ Groq extraction failed: {type(e)._name_}: {e}")
+                print(f"🔄 Falling back to regex extraction")
+                # Fallback to regex extraction
+        
+        # Route to appropriate regex-based extractor (original method)
+        print(f"\n🔧 Using REGEX extraction method for {document_type}")
+        if document_type == "OPD_NOTE":
+            result = LLMExtractor._extract_opd_note(ocr_text)
+        elif document_type == "LAB_REPORT":
+            result = LLMExtractor._extract_lab_report(ocr_text)
+        elif document_type == "PRESCRIPTION":
+            result = LLMExtractor._extract_prescription(ocr_text)
         else:
             print("ℹ️ Groq not available, using fallback extraction")
             return LLMExtractor._fallback_extraction(ocr_text, document_type)
@@ -192,4 +205,9 @@ class LLMExtractor:
         Determine processing status.
         All records are marked as VERIFIED now (no confidence filtering).
         """
-        return "VERIFIED"
+        if confidence >= 0.90:
+            return "AUTO_APPROVED"
+        elif confidence >= 0.70:
+            return "PENDING_REVIEW"
+        else:
+            return "REJECTED"
