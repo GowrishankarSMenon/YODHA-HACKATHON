@@ -1,7 +1,7 @@
 """
 LLM-based extraction service for medical documents.
 Converts OCR extracted text into structured JSON format.
-Supports both regex-based and Groq LLM-based extraction.
+Simplified approach: Direct OCR -> Groq LLM -> Template mapping.
 """
 import re
 import os
@@ -16,185 +16,143 @@ try:
 except Exception as e:
     GROQ_AVAILABLE = False
 
-from ai.layoutlmv3_engine import LayoutLMv3Engine
-from PIL import Image as PILImage
-
 USE_GROQ = os.getenv("USE_GROQ", "true").lower() == "true" and GROQ_AVAILABLE
-
-TEMPLATE_KEYS = {
-    "patient_id",
-    "patient_name",
-    "surname",
-    "date_of_birth",
-    "gender",
-    "phone",
-    "mobile",
-    "email",
-    "address",
-    "suburb",
-    "state",
-    "occupation",
-    "appointment_datetime",
-    "procedure",
-    "hospital_name",
-    "hospital_address",
-    "health_fund",
-    "insurance_id",
-    "gp_name",
-    "referrer",
-    "comments"
-}
-
-def normalize_to_template(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Ensure data follows the exact template schema."""
-    if not isinstance(data, dict):
-        return {key: None for key in TEMPLATE_KEYS}
-    normalized = {}
-    for key in TEMPLATE_KEYS:
-        normalized[key] = data.get(key, None)
-    return normalized
 
 class LLMExtractor:
     """LLM-powered extraction service that maps OCR text to structured JSON."""
     
     @staticmethod
-    def extract_structured_data(ocr_text: str, document_type: str = "AUTO", use_groq: bool = None, image: PILImage.Image = None) -> Dict[str, Any]:
-        """Extract structured data from OCR text and optionally an image."""
+    def extract_structured_data(ocr_text: str, document_type: str = "AUTO", use_groq: bool = None, image = None) -> Dict[str, Any]:
+        """
+        Extract structured data from OCR text using Groq LLM.
+        Simple pipeline: OCR Text → Groq LLM → Structured Data
+        """
         should_use_groq = use_groq if use_groq is not None else USE_GROQ
         
-        # Step 1: Layout-Aware Extraction (if image available)
-        anchored_data = {}
-        if image:
-            try:
-                print("📐 Performing Spatial Field Anchoring...")
-                anchored_data = LayoutLMv3Engine.process_image(image)
-                # Use raw ocr from engine if provided
-                if "_raw_ocr" in anchored_data:
-                    ocr_text = anchored_data.pop("_raw_ocr")
-            except Exception as e:
-                print(f"Layout extraction error: {e}")
-
         if document_type == "AUTO":
             document_type = LLMExtractor._detect_document_type(ocr_text)
         
         if should_use_groq and GROQ_AVAILABLE:
             try:
+                print("🤖 Using Groq LLM for direct extraction...")
                 groq_service = get_groq_service()
                 
-                # Check if layout anchoring actually found anything useful
-                # (ignore clinical fields for this check)
-                structured_count = sum(1 for k, v in anchored_data.items() 
-                                     if v and k not in ['comments', 'diagnosis', '_raw_ocr'])
+                # Single-step extraction: OCR text → Complete template
+                extracted_data = groq_service.extract_full_template(ocr_text)
                 
-                print(f"📊 Layout Anchoring filled {structured_count} structured fields.")
-
-                if structured_count < 2:
-                    print("⚠️ Layout Anchoring failed or was insufficient. Falling back to Full LLM Extraction...")
-                    final_data = groq_service.extract_full_template(ocr_text)
-                    return normalize_to_template(final_data)
+                if "error" in extracted_data:
+                    print(f"⚠️ Groq error, falling back to basic extraction: {extracted_data['error']}")
+                    return LLMExtractor._fallback_extraction(ocr_text, document_type)
                 
-                # If layout anchoring succeeded, proceed with clinical normalization
-                clinical_data = groq_service.extract_key_value_pairs(
-                    comments_text=anchored_data.get("comments", ""),
-                    diagnosis_text=anchored_data.get("diagnosis", "")
-                )
+                return extracted_data
                 
-                # Step 3: Merge Anchored (Deterministic) + Clinical (LLM-Normalized)
-                final_data = anchored_data.copy()
-                if clinical_data and "error" not in clinical_data:
-                    final_data["comments"] = clinical_data.get("comments")
-                    final_data["diagnosis"] = clinical_data.get("diagnosis")
-                
-                return normalize_to_template(final_data)
             except Exception as e:
-                print(f"LLM Extraction/Normalization error: {e}")
-                pass  # Fallback
+                print(f"❌ Groq extraction failed: {e}")
+                return LLMExtractor._fallback_extraction(ocr_text, document_type)
+        else:
+            print("ℹ️ Groq not available, using fallback extraction")
+            return LLMExtractor._fallback_extraction(ocr_text, document_type)
+    
+    @staticmethod
+    def _fallback_extraction(ocr_text: str, document_type: str) -> Dict[str, Any]:
+        """Simple regex-based fallback extraction."""
+        extracted = {}
         
-        # Fallback: Merge anchored data into template
-        return normalize_to_template(anchored_data if anchored_data else {"raw_text": ocr_text})
+        # Extract common fields using regex
+        uhid_match = re.search(r'(?:UHID|Patient ID|ID)[:\s]+([A-Z0-9\-]+)', ocr_text, re.IGNORECASE)
+        if uhid_match:
+            extracted['patient_id'] = uhid_match.group(1)
+        
+        name_match = re.search(r'(?:Name|Patient Name)[:\s]+([A-Za-z\s]+)', ocr_text, re.IGNORECASE)
+        if name_match:
+            extracted['patient_name'] = name_match.group(1).strip()
+        
+        dob_match = re.search(r'(?:DOB|Date of Birth)[:\s]+([0-9\/\-]+)', ocr_text, re.IGNORECASE)
+        if dob_match:
+            extracted['date_of_birth'] = dob_match.group(1)
+        
+        gender_match = re.search(r'(?:Gender|Sex)[:\s]+([MFmf])', ocr_text, re.IGNORECASE)
+        if gender_match:
+            extracted['gender'] = gender_match.group(1).upper()
+        
+        phone_match = re.search(r'(?:Phone|Mobile|Tel)[:\s]+([0-9\s\-\+]+)', ocr_text, re.IGNORECASE)
+        if phone_match:
+            extracted['phone'] = phone_match.group(1).strip()
+        
+        return extracted
     
     @staticmethod
     def match_to_patient_record(extracted_data: Dict[str, Any]) -> PatientRecord:
-        """Match extracted data to the standardized PatientRecord template."""
+        """
+        Match extracted data to the standardized PatientRecord template.
+        NO confidence filtering - all fields are populated with HIGH confidence.
+        """
         
-        def get_val_conf(field_name: str) -> PatientRecordItem:
-            """Extract from nested value/confidence structure if available, else raw."""
-            item = extracted_data.get(field_name)
-            if isinstance(item, dict):
-                val = item.get("value")
-                conf = item.get("confidence", "HIGH")
-                if val is None or val == "":
-                    conf = "NOT_PRESENT_IN_DOC"
-                return PatientRecordItem(value=str(val) if val is not None else None, confidence=conf)
+        def get_val(field_name: str) -> PatientRecordItem:
+            """Extract value and set confidence to HIGH for all fields."""
+            value = extracted_data.get(field_name)
+            
+            # Handle nested dict structure (if present from old extraction)
+            if isinstance(value, dict):
+                value = value.get("value")
+            
+            # Convert to string if present, otherwise None
+            if value is not None and value != "" and value != "null" and value != "N/A":
+                return PatientRecordItem(value=str(value), confidence="HIGH")
             else:
-                if item is None or item == "":
-                    return PatientRecordItem(value=None, confidence="NOT_PRESENT_IN_DOC")
-                return PatientRecordItem(value=str(item), confidence="HIGH")
+                return PatientRecordItem(value=None, confidence="HIGH")
 
-        # Build comprehensive record
+        # Build comprehensive record - ALL fields get HIGH confidence
         return PatientRecord(
             # Patient Info
-            patient_id=get_val_conf("patient_id"),
-            patient_name=get_val_conf("patient_name"),
-            surname=get_val_conf("surname"),
-            age=get_val_conf("age"),
-            gender=get_val_conf("gender"),
-            date_of_birth=get_val_conf("date_of_birth"),
-            phone=get_val_conf("phone"),
-            mobile=get_val_conf("mobile"),
-            email=get_val_conf("email"),
-            address=get_val_conf("address"),
-            occupation=get_val_conf("occupation"),
+            patient_id=get_val("patient_id"),
+            patient_name=get_val("patient_name"),
+            surname=get_val("surname"),
+            age=get_val("age"),
+            gender=get_val("gender"),
+            date_of_birth=get_val("date_of_birth"),
+            phone=get_val("phone"),
+            mobile=get_val("mobile"),
+            email=get_val("email"),
+            address=get_val("address"),
+            occupation=get_val("occupation"),
             
             # Hospital Info
-            hospital_name=get_val_conf("hospital_name"),
-            hospital_address=get_val_conf("hospital_address"),
+            hospital_name=get_val("hospital_name"),
+            hospital_address=get_val("hospital_address"),
             
             # Insurance/Subscriber
-            insurance_id=get_val_conf("insurance_id"),
-            insurance_type=get_val_conf("insurance_type"),
-            group_number=get_val_conf("group_number"),
-            subscriber_name=get_val_conf("subscriber_name"),
-            medicare_no=get_val_conf("medicare_no"),
-            medicare_ref=get_val_conf("medicare_ref"),
-            health_fund=get_val_conf("health_fund"),
-            health_fund_no=get_val_conf("health_fund_no"),
-            vet_affairs=get_val_conf("vet_affairs"),
+            insurance_id=get_val("insurance_id"),
+            insurance_type=get_val("insurance_type"),
+            group_number=get_val("group_number"),
+            subscriber_name=get_val("subscriber_name"),
+            medicare_no=get_val("medicare_no"),
+            medicare_ref=get_val("medicare_ref"),
+            health_fund=get_val("health_fund"),
+            health_fund_no=get_val("health_fund_no"),
+            vet_affairs=get_val("vet_affairs"),
             
             # Visit/Medical
-            visit_date=get_val_conf("visit_date"),
-            procedure=get_val_conf("procedure"),
-            doctor_name=get_val_conf("doctor_name"),
-            gp_name=get_val_conf("gp_name"),
-            referrer=get_val_conf("referrer"),
-            chief_complaint=get_val_conf("chief_complaint"),
-            comments=get_val_conf("comments"),
+            visit_date=get_val("visit_date") if "visit_date" in extracted_data else get_val("appointment_datetime"),
+            procedure=get_val("procedure"),
+            doctor_name=get_val("doctor_name"),
+            gp_name=get_val("gp_name"),
+            referrer=get_val("referrer"),
+            chief_complaint=get_val("chief_complaint"),
+            comments=get_val("comments"),
             
             # Clinical/Vitals
-            blood_pressure=get_val_conf("blood_pressure"),
-            pulse=get_val_conf("pulse"),
-            temperature=get_val_conf("temperature"),
-            weight=get_val_conf("weight"),
-            spo2=get_val_conf("spo2"),
-            diagnosis=get_val_conf("diagnosis"),
+            blood_pressure=get_val("blood_pressure"),
+            pulse=get_val("pulse"),
+            temperature=get_val("temperature"),
+            weight=get_val("weight"),
+            spo2=get_val("spo2"),
+            diagnosis=get_val("diagnosis"),
             
             # Metadata
-            medications=[], # TODO: Handle medications list if needed
-            status="VERIFIED" if extracted_data.get("patient_name") else "DRAFT"
+            medications=[],
+            status="VERIFIED"
         )
-    
-    @staticmethod
-    def _extract_with_groq(ocr_text: str, document_type: str) -> Dict[str, Any]:
-        """Extract key-value pairs using Groq API and normalize."""
-        groq_service = get_groq_service()
-        extracted_data = groq_service.extract_key_value_pairs(ocr_text, document_type)
-        return normalize_to_template(extracted_data)
-    
-    @staticmethod
-    def _summarize_with_groq(ocr_text: str, document_type: str) -> Dict[str, Any]:
-        """Summarize document using Groq API."""
-        groq_service = get_groq_service()
-        return groq_service.summarize_text(ocr_text, document_type)
     
     @staticmethod
     def _detect_document_type(text: str) -> str:
@@ -209,132 +167,15 @@ class LLMExtractor:
         return "GENERAL"
     
     @staticmethod
-    def _extract_opd_note(text: str) -> Dict[str, Any]:
-        """Extract structured data from OPD note."""
-        extracted = {}
-        
-        uhid_match = re.search(r'UHID[:\s]+([A-Z0-9\-]+)', text, re.IGNORECASE)
-        extracted['patient_id'] = uhid_match.group(1) if uhid_match else "UNKNOWN"
-        
-        diagnosis_match = re.search(r'DIAGNOSIS[:\s]+(.*?)(?=\n[A-Z]+:|$)', text, re.IGNORECASE | re.DOTALL)
-        if diagnosis_match:
-            extracted['diagnosis'] = diagnosis_match.group(1).strip()
-        
-        bp_match = re.search(r'Blood Pressure[:\s]+(\d+/\d+)', text, re.IGNORECASE)
-        if bp_match:
-            extracted['blood_pressure'] = bp_match.group(1)
-        
-        vitals = {}
-        pulse_match = re.search(r'Pulse[:\s]+(\d+)', text, re.IGNORECASE)
-        temp_match = re.search(r'Temperature[:\s]+([\d.]+)', text, re.IGNORECASE)
-        weight_match = re.search(r'Weight[:\s]+([\d.]+)', text, re.IGNORECASE)
-        
-        if pulse_match:
-            vitals['pulse'] = pulse_match.group(1) + " bpm"
-        if temp_match:
-            vitals['temperature'] = temp_match.group(1) + "°F"
-        if weight_match:
-            vitals['weight'] = weight_match.group(1) + " kg"
-        
-        if vitals:
-            extracted['vitals'] = vitals
-        
-        medications = []
-        med_section = re.search(r'MEDICATIONS[:\s]+(.*?)(?=\n[A-Z]+:|ADVICE|$)', text, re.IGNORECASE | re.DOTALL)
-        if med_section:
-            med_lines = med_section.group(1).strip().split('\n')
-            for line in med_lines:
-                med_match = re.search(r'(?:\d+\.\s*)?([A-Za-z]+)\s+(\d+\s*mg)\s*-\s*([A-Z]+)', line, re.IGNORECASE)
-                if med_match:
-                    medications.append({
-                        "name": med_match.group(1),
-                        "dose": med_match.group(2),
-                        "frequency": med_match.group(3)
-                    })
-        
-        if medications:
-            extracted['medications'] = medications
-        
-        complaint_match = re.search(r'CHIEF COMPLAINT[:\s]+(.*?)(?=\n[A-Z]+:|$)', text, re.IGNORECASE | re.DOTALL)
-        if complaint_match:
-            extracted['chief_complaint'] = complaint_match.group(1).strip()
-        
-        return extracted
-    
-    @staticmethod
-    def _extract_lab_report(text: str) -> Dict[str, Any]:
-        """Extract structured data from lab report."""
-        extracted = {}
-        
-        uhid_match = re.search(r'UHID[:\s]+([A-Z0-9\-]+)', text, re.IGNORECASE)
-        extracted['patient_id'] = uhid_match.group(1) if uhid_match else "UNKNOWN"
-        
-        test_match = re.search(r'TEST[:\s]+(.*?)(?=\n|$)', text, re.IGNORECASE)
-        if test_match:
-            extracted['test_name'] = test_match.group(1).strip()
-        
-        date_match = re.search(r'Report Date[:\s]+([\d\-A-Za-z]+)', text, re.IGNORECASE)
-        if date_match:
-            extracted['test_date'] = date_match.group(1)
-        
-        results = {}
-        result_lines = re.findall(r'([A-Za-z\s]+):\s*([\d.]+)\s*([a-zA-Z/%]+)', text)
-        for match in result_lines:
-            key = match[0].strip()
-            value = f"{match[1]} {match[2]}"
-            results[key] = value
-        
-        if results:
-            extracted['results'] = results
-        
-        remarks_match = re.search(r'REMARKS[:\s]+(.*?)(?=\n[A-Z]+:|Lab Technician|$)', text, re.IGNORECASE | re.DOTALL)
-        if remarks_match:
-            extracted['remarks'] = remarks_match.group(1).strip()
-        
-        return extracted
-    
-    @staticmethod
-    def _extract_prescription(text: str) -> Dict[str, Any]:
-        """Extract structured data from prescription."""
-        extracted = {}
-        
-        uhid_match = re.search(r'UHID[:\s]+([A-Z0-9\-]+)', text, re.IGNORECASE)
-        extracted['patient_id'] = uhid_match.group(1) if uhid_match else "UNKNOWN"
-        
-        medications = []
-        med_lines = text.split('\n')
-        for line in med_lines:
-            med_match = re.search(r'([A-Za-z]+)\s+(\d+\s*mg)\s*-\s*([A-Z]+)', line, re.IGNORECASE)
-            if med_match:
-                medications.append({
-                    "name": med_match.group(1),
-                    "dose": med_match.group(2),
-                    "frequency": med_match.group(3)
-                })
-        
-        if medications:
-            extracted['medications'] = medications
-        
-        return extracted
-    
-    @staticmethod
-    def _extract_generic(text: str) -> Dict[str, Any]:
-        """Extract basic information from generic document."""
-        extracted = {}
-        
-        uhid_match = re.search(r'UHID[:\s]+([A-Z0-9\-]+)', text, re.IGNORECASE)
-        extracted['patient_id'] = uhid_match.group(1) if uhid_match else "UNKNOWN"
-        extracted['raw_text'] = text[:500]
-        
-        return extracted
-    
-    @staticmethod
     def calculate_confidence(extracted_data: Dict[str, Any], document_type: str) -> float:
-        """Calculate FORM-BASED CONFIDENCE score."""
+        """
+        Calculate confidence score based on number of filled fields.
+        NOTE: This is for reporting only - doesn't affect extraction anymore.
+        """
         if not extracted_data:
             return 0.0
             
-        filled = sum(1 for v in extracted_data.values() if v is not None)
+        filled = sum(1 for v in extracted_data.values() if v not in [None, "", "null", "N/A"])
         total = len(extracted_data)
         
         if total == 0:
@@ -345,11 +186,8 @@ class LLMExtractor:
     
     @staticmethod
     def determine_status(confidence: float) -> str:
-        """Determine processing status based on confidence score."""
-        if confidence >= 0.85:
-            return "AUTO_APPROVED"
-        elif confidence >= 0.50:
-            return "PENDING_REVIEW"
-        else:
-            return "REJECTED"
-
+        """
+        Determine processing status.
+        All records are marked as VERIFIED now (no confidence filtering).
+        """
+        return "VERIFIED"

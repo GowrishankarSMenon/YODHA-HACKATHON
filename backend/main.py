@@ -6,17 +6,21 @@ Workflow: DOCUMENT → OCR → LLM → DATABASE → FETCH
 """
 import uvicorn
 import uuid
-from fastapi import FastAPI, UploadFile, File, HTTPException, status
+from fastapi import FastAPI, UploadFile, File, HTTPException, status, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from io import BytesIO
 from PIL import Image
 from pdf2image import convert_from_bytes
 import os
 import shutil
+from dotenv import load_dotenv
+
+# Load environment variables for Gemini API
+load_dotenv()
 
 # Redis Queue imports for async processing
 try:
@@ -114,6 +118,59 @@ def perform_ocr(file_content: bytes, filename: str) -> str:
     else:
         # Fallback: Load sample OCR text for demo
         return load_sample_ocr(filename)
+
+def perform_gemini_ocr(img: Image.Image) -> str:
+    """
+    Perform OCR on Malayalam documents using Gemini Vision API.
+    Based on test_gemini_vision.py implementation.
+    """
+    try:
+        from google import genai
+        
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not set in environment")
+        
+        print("🧠 Initializing Gemini Vision for Malayalam OCR...")
+        client = genai.Client(api_key=api_key)
+        
+        prompt = """
+This is a handwritten Malayalam medical/OPD note.
+
+1. Carefully read and understand the handwritten Malayalam text in the image.
+2. First, rewrite the content in clear Malayalam text (as best as you can).
+3. Then summarize in simple English what happened.
+4. Extract and list:
+   - Symptoms
+   - Diagnosis
+   - Medicines
+   - Doctor instructions
+   - Patient Name
+   - Patient ID/UHID (if present)
+   - Age
+   - Date
+   - Any other medical information
+
+If something is unclear or unreadable, explicitly say "unclear".
+Provide all extracted information in a structured format.
+"""
+        
+        print("🚀 Sending to Gemini Vision API...")
+        response = client.models.generate_content(
+            model="models/gemini-2.5-flash",
+            contents=[prompt, img],
+        )
+        
+        ocr_text = response.text
+        print(f"✅ Gemini Vision OCR completed - Text length: {len(ocr_text)} characters")
+        return ocr_text
+        
+    except Exception as e:
+        print(f"❌ Gemini Vision OCR error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Gemini Vision OCR failed: {str(e)}. Please check GEMINI_API_KEY in .env file."
+        )
 
 def load_sample_ocr(filename: str) -> str:
     """Load sample OCR text as fallback."""
@@ -232,7 +289,10 @@ async def process_document(file: UploadFile = File(...)):
         )
 
 @app.post("/api/extract-with-template")
-async def extract_with_template(file: UploadFile = File(...)):
+async def extract_with_template(
+    file: UploadFile = File(...),
+    is_malayalam: Optional[str] = Form("false")
+):
     """
     Extract key-value pairs from medical documents using OCR + LLM.
     
@@ -251,12 +311,16 @@ async def extract_with_template(file: UploadFile = File(...)):
         print("🌐 API ENDPOINT - /api/extract-with-template called")
         print("*"*80)
         
+        # Check if Malayalam mode is enabled
+        use_malayalam = is_malayalam.lower() == "true"
+        print(f"📝 Malayalam mode: {use_malayalam}")
+        
         # Step 1: Read file
         print(f"\n📥 Step 1: Reading file '{file.filename}'...")
         file_content = await file.read()
         print(f"✅ File read - Size: {len(file_content)} bytes")
         
-        # Step 2: Perform OCR
+        # Step 2: Convert to Image and Perform OCR
         print(f"\n🔍 Step 2: Converting file to Image and performing OCR...")
         img = None
         try:
@@ -268,7 +332,14 @@ async def extract_with_template(file: UploadFile = File(...)):
         except Exception as e:
             print(f"Image conversion error: {e}")
 
-        ocr_text = perform_ocr(file_content, file.filename)
+        # Choose OCR method based on language
+        if use_malayalam:
+            print("🌏 Using Gemini Vision for Malayalam OCR...")
+            ocr_text = perform_gemini_ocr(img)
+        else:
+            print("📖 Using TrOCR for English OCR...")
+            ocr_text = perform_ocr(file_content, file.filename)
+        
         print(f"✅ OCR completed - Text length: {len(ocr_text)} characters")
         print("="*40)
         print(f"📄 [RAW OCR OUTPUT START]\n{ocr_text}\n[RAW OCR OUTPUT END]")
