@@ -95,4 +95,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## 👥 Powered By
 
-Team **YODHA** - Zero-Downtime Hospital Digitization.
+Team **StrawHats** - Zero-Downtime Hospital Digitization.
