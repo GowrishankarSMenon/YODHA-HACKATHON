@@ -66,14 +66,15 @@ Ready to run MedScan AI locally? Follow these quick steps:
    python main.py
    ```
 
-**For a full step-by-step guide, see our [Installation Guide](INSTALL.md).**
+**For a full step-by-step guide, see our [Installation Guide](backend/docs/INSTALLATION.md).**
 
 ---
 
 ## 📚 Documentation
 
-- [Installation Guide](INSTALL.md)
+- [Installation Guide](backend/docs/INSTALLATION.md)
 - [Contributing Guide](CONTRIBUTING.md)
+- [Backend Documentation](backend/README.md)
 - [API Reference](backend/docs/README.md)
 - [Problem & Solutions](backend/docs/PROBLEM_FIXED.md)
 

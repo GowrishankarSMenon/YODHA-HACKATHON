@@ -1,4 +1,8 @@
-# MedScan AI - Backend API Documentation
+# API Reference
+
+[⬅️ Back to Backend README](../README.md)
+
+This directory contains the core logic and API documentation for the MedScan AI backend.
 
 This directory contains the core logic and API documentation for the MedScan AI backend.
 
