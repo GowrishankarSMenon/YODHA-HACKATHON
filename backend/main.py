@@ -149,7 +149,7 @@ This is a handwritten Malayalam medical/OPD note.
    - Patient ID/UHID (if present)
    - Age
    - Date
-   - Any other medical information
+   - Any other medical informatio
 
 If something is unclear or unreadable, explicitly say "unclear".
 Provide all extracted information in a structured format.
