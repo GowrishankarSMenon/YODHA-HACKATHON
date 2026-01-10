@@ -65,7 +65,7 @@ print(f"Predicted Character: {class_names[predicted_class_idx]}")
 In the context of the **MedScan AI** project, this model can be used to improve the extraction of handwritten Malayalam data in clinical documents, such as:
 - **Patient Names** written in Malayalam.
 - **Vitals** or numbers written in Malayalam script.
-- **Clinical Comments** (as seen in the [attached example](uploaded_image_1768027081577.jpg)).
+- **Clinical Comments** (as seen in the [attached example](test-images/mal.jpeg)).
 
 ### Integration Strategy
 1. **Segmentation**: Use OpenCV to segment individual handwritten characters from the "Comments" or "Name" sections of the medical form.

@@ -39,6 +39,14 @@ graph LR
 
 ---
 
+## 📸 Example: Malayalam Document Processing
+
+![Malayalam Document](test-images/mal.jpeg)
+
+*MedScan AI successfully extracts Malayalam text (like names and addresses) and English text simultaneously.*
+
+---
+
 ## 🚀 Getting Started
 
 Ready to run MedScan AI locally? Follow these quick steps:
