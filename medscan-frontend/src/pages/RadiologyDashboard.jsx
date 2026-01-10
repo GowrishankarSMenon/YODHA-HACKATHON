@@ -1,138 +1,270 @@
 import { useState } from 'react';
+import { Search, Upload, User, Clipboard, CheckCircle2, AlertCircle, Loader2, FileText, ImageIcon } from 'lucide-react';
 
 export default function RadiologyDashboard() {
-    const [selectedStudy, setSelectedStudy] = useState(0);
+    const [uhid, setUhid] = useState('');
+    const [patient, setPatient] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
-    const studies = [
-        { id: 0, name: 'Chest X-Ray', date: 'Apr 12, 2024' },
-        { id: 1, name: 'CT Scan Brain', date: 'Apr 05, 2024' },
-        { id: 2, name: 'MRI Spine', date: 'Mar 19, 2024' },
-        { id: 3, name: 'Ultrasound Abdomen', date: 'Feb 10, 2024' },
-    ];
+    // Lab record form state
+    const [photoUrl, setPhotoUrl] = useState('');
+    const [reviews, setReviews] = useState('');
+    const [uploading, setUploading] = useState(false);
+
+    const API_BASE_URL = 'http://localhost:5000/api';
+
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        if (!uhid.trim()) return;
+
+        setLoading(true);
+        setError('');
+        setPatient(null);
+        setSuccess('');
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/patient/${uhid}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                setPatient(data);
+            } else {
+                setError(data.message || 'Patient not found');
+            }
+        } catch (err) {
+            setError('Could not connect to the Radiology API. Make sure it is running on port 5000.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpload = async (e) => {
+        e.preventDefault();
+        if (!patient || !photoUrl || !reviews) {
+            setError('Please search for a patient and fill in all fields.');
+            return;
+        }
+
+        setUploading(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/lab-records`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    uhid: patient.uhid,
+                    file_url: photoUrl,
+                    reviews: reviews
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setSuccess('Lab record uploaded successfully!');
+                setPhotoUrl('');
+                setReviews('');
+            } else {
+                setError(data.message || 'Upload failed');
+            }
+        } catch (err) {
+            setError('Error connecting to API. ' + err.message);
+        } finally {
+            setUploading(false);
+        }
+    };
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            {/* Header */}
-            <header className="bg-blue-600 text-white shadow-md">
+        <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans pb-12">
+            {/* Navigation Header */}
+            <header className="border-b border-slate-800 bg-[#1e293b]/50 backdrop-blur-md sticky top-0 z-50">
                 <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-semibold">Radiology & PACS Dashboard</h1>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        {/* Search Icon */}
-                        <button className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </button>
-                        {/* Notifications Icon */}
-                        <button className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                            </svg>
-                        </button>
-                        {/* User Avatar */}
-                        <div className="w-9 h-9 bg-blue-800 rounded-full flex items-center justify-center font-semibold">
-                            RK
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500 rounded-lg shadow-lg shadow-blue-500/20">
+                            <ImageIcon className="w-6 h-6 text-white" />
                         </div>
+                        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                            Radiology Portal
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm font-medium text-slate-400">
+                        <span>Connected to EMR</span>
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
                     </div>
                 </div>
             </header>
 
-            {/* Main Content */}
-            <main className="container mx-auto px-6 py-8">
-                <div className="grid grid-cols-12 gap-6">
-                    {/* LEFT SIDEBAR - PACS Worklist */}
-                    <div className="col-span-3">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                            <h2 className="text-lg font-semibold text-gray-800 mb-4">PACS Worklist</h2>
-                            <div className="space-y-2">
-                                {studies.map((study) => (
-                                    <label
-                                        key={study.id}
-                                        className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${selectedStudy === study.id
-                                                ? 'bg-blue-50 border-2 border-blue-300'
-                                                : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                                            }`}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedStudy === study.id}
-                                            onChange={() => setSelectedStudy(study.id)}
-                                            className="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                                        />
-                                        <div className="flex-1">
-                                            <p className="font-medium text-gray-900 text-sm">{study.name}</p>
-                                            <p className="text-xs text-gray-500 mt-0.5">{study.date}</p>
-                                        </div>
-                                    </label>
-                                ))}
+            <main className="container mx-auto px-6 py-8 max-w-5xl">
+                {/* Search Section */}
+                <div className="mb-8">
+                    <div className="bg-[#1e293b] rounded-2xl border border-slate-800 p-8 shadow-xl">
+                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <Search className="w-5 h-5 text-blue-400" />
+                            Patient Lookup
+                        </h2>
+                        <form onSubmit={handleSearch} className="flex gap-3">
+                            <input
+                                type="text"
+                                placeholder="Enter Patient UHID (e.g., UH123456)"
+                                value={uhid}
+                                onChange={(e) => setUhid(e.target.value)}
+                                className="flex-1 bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-slate-100 placeholder:text-slate-500"
+                            />
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 shadow-lg shadow-blue-600/20 active:scale-95"
+                            >
+                                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                                Search
+                            </button>
+                        </form>
+                        {error && (
+                            <div className="mt-4 flex items-center gap-2 text-rose-400 bg-rose-400/10 border border-rose-400/20 p-3 rounded-xl text-sm">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                {error}
                             </div>
-                        </div>
+                        )}
                     </div>
+                </div>
 
-                    {/* RIGHT CONTENT PANEL - Imaging Report */}
-                    <div className="col-span-9">
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-                            <h2 className="text-xl font-semibold text-gray-800 mb-6">
-                                Imaging Report: Ravi Kumar
-                            </h2>
-
-                            {/* 1. Image Section */}
-                            <div className="mb-8">
-                                <div className="bg-gray-900 rounded-lg border-2 border-gray-300 p-8 flex items-center justify-center">
-                                    <div className="text-center">
-                                        <svg className="w-48 h-48 mx-auto text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                        <p className="text-gray-400 mt-4 text-sm">Chest X-Ray Image Placeholder</p>
+                {/* Dashboard Grid */}
+                {patient ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* Patient Profile Card */}
+                        <div className="md:col-span-1 space-y-6">
+                            <div className="bg-[#1e293b] rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+                                <div className="h-24 bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center">
+                                    <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full border border-white/30 flex items-center justify-center shadow-inner">
+                                        <User className="w-8 h-8 text-white" />
+                                    </div>
+                                </div>
+                                <div className="p-6 text-center">
+                                    <h3 className="text-xl font-bold text-white mb-1">{patient.name}</h3>
+                                    <p className="text-blue-400 text-sm font-semibold mb-4">{patient.uhid}</p>
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div className="bg-[#0f172a] p-2 rounded-lg border border-slate-800">
+                                            <p className="text-slate-500 text-xs">Age</p>
+                                            <p className="font-semibold">{patient.age} Yrs</p>
+                                        </div>
+                                        <div className="bg-[#0f172a] p-2 rounded-lg border border-slate-800">
+                                            <p className="text-slate-500 text-xs">Gender</p>
+                                            <p className="font-semibold">{patient.gender}</p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 text-left border-t border-slate-800 pt-4 space-y-2">
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-slate-500">Phone</span>
+                                            <span className="text-slate-300 font-medium">{patient.phone}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-slate-500">ABHA ID</span>
+                                            <span className="text-slate-300 font-medium">{patient.abha_id || 'Not Linked'}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* 2. Findings Card */}
-                            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-5">
-                                <h3 className="text-base font-semibold text-gray-800 mb-3">Findings:</h3>
-                                <ul className="space-y-2 text-gray-700">
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-blue-600 mt-1">•</span>
-                                        <span>Mild Cardiomegaly</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-blue-600 mt-1">•</span>
-                                        <span>Left Basal Infiltrate</span>
-                                    </li>
-                                </ul>
+                            <div className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-6">
+                                <h4 className="flex items-center gap-2 text-blue-400 font-semibold mb-2">
+                                    <Clipboard className="w-4 h-4" />
+                                    Radiology Notice
+                                </h4>
+                                <p className="text-sm text-slate-400 leading-relaxed italic">
+                                    "Ensure all DICOM images are verified before final submission to EMR."
+                                </p>
                             </div>
+                        </div>
 
-                            {/* 3. Impression Card */}
-                            <div className="mb-8 bg-amber-50 border border-amber-200 rounded-lg p-5">
-                                <h3 className="text-base font-semibold text-gray-800 mb-3">Impression:</h3>
-                                <ul className="space-y-2 text-gray-700">
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-amber-600 mt-1">•</span>
-                                        <span>Suggestive of Early Pneumonia</span>
-                                    </li>
-                                </ul>
-                            </div>
+                        {/* Record Upload Section */}
+                        <div className="md:col-span-2">
+                            <div className="bg-[#1e293b] rounded-2xl border border-slate-800 p-8 shadow-xl h-full">
+                                <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                                    <Upload className="w-6 h-6 text-indigo-400" />
+                                    New Lab Record Entry
+                                </h2>
 
-                            {/* 4. Action Buttons */}
-                            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                                <div className="flex gap-3">
-                                    <button className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm">
-                                        View DICOM
+                                <form onSubmit={handleUpload} className="space-y-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">
+                                            Lab Record Photo URL
+                                        </label>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                                                <ImageIcon className="w-5 h-5" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                placeholder="https://cloud.storage.com/record-image.jpg"
+                                                value={photoUrl}
+                                                onChange={(e) => setPhotoUrl(e.target.value)}
+                                                className="w-full bg-[#0f172a] border border-slate-700 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-slate-100 placeholder:text-slate-600"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-400 mb-2">
+                                            Radiology Reviews / Findings
+                                        </label>
+                                        <div className="relative group">
+                                            <div className="absolute left-4 top-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                                                <FileText className="w-5 h-5" />
+                                            </div>
+                                            <textarea
+                                                rows="5"
+                                                placeholder="Ex: Patient shows mild cardiomegaly but lung fields are clear. No evidence of pneumonia."
+                                                value={reviews}
+                                                onChange={(e) => setReviews(e.target.value)}
+                                                className="w-full bg-[#0f172a] border border-slate-700 rounded-xl pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all text-slate-100 placeholder:text-slate-600 resize-none"
+                                            ></textarea>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={uploading}
+                                        className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-600/20 active:scale-[0.98]"
+                                    >
+                                        {uploading ? (
+                                            <>
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                Submitting to EMR...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle2 className="w-5 h-5" />
+                                                Submit Radiology Report
+                                            </>
+                                        )}
                                     </button>
-                                    <button className="px-5 py-2.5 border-2 border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors">
-                                        Generate Report
-                                    </button>
-                                </div>
-                                <button className="px-6 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md">
-                                    Save & Send to EMR
-                                </button>
+
+                                    {success && (
+                                        <div className="flex items-center gap-3 text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 p-4 rounded-xl animate-in zoom-in-95 duration-300">
+                                            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                                            <div>
+                                                <p className="font-bold">Success!</p>
+                                                <p className="text-sm opacity-90">{success}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </form>
                             </div>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-600 border-2 border-dashed border-slate-800 rounded-3xl bg-[#1e293b]/20">
+                        <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
+                            <User className="w-10 h-10" />
+                        </div>
+                        <p className="text-lg font-medium">Search for a patient by UHID to begin</p>
+                        <p className="text-sm">Radiology records will be linked automatically to the patient profile</p>
+                    </div>
+                )}
             </main>
         </div>
     );
