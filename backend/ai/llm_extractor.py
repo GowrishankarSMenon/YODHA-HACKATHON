@@ -115,6 +115,8 @@ class LLMExtractor:
             mobile=get_val("mobile"),
             email=get_val("email"),
             address=get_val("address"),
+            suburb=get_val("suburb"),
+            state=get_val("state"),
             occupation=get_val("occupation"),
             
             # Hospital Info

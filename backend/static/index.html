@@ -579,13 +579,39 @@
             document.getElementById('dropZone').style.display = 'none';
             document.getElementById('mainForm').style.display = 'block';
 
-            // Helper to fill by ID
+            // Helper to convert date formats for HTML date input
+            function convertDateFormat(dateStr) {
+                if (!dateStr) return null;
+                
+                // Try to parse DD-MM-YYYY or DD/MM/YYYY format
+                const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+                if (ddmmyyyyMatch) {
+                    const [, day, month, year] = ddmmyyyyMatch;
+                    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                }
+                
+                // Already in YYYY-MM-DD format
+                if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                    return dateStr;
+                }
+                
+                return dateStr; // Return as-is if format not recognized
+            }
+
+            // Helper to fill by ID - NO confidence styling, just populate values
             const set = (id, field) => {
                 const el = document.getElementById(id);
-                if (el && field) {
-                    el.value = field.value || '';
-                    if (field.confidence === 'LOW') el.style.backgroundColor = '#fffbeb';
-                    if (field.confidence === 'NOT_PRESENT_IN_DOC') el.style.borderColor = '#fb7185'; // Red alert for missing fields
+                if (el && field && field.value) {
+                    let value = field.value;
+                    
+                    // Special handling for date inputs
+                    if (id === 'date_of_birth' && el.type === 'date') {
+                        value = convertDateFormat(value);
+                    }
+                    
+                    if (value) {
+                        el.value = value;
+                    }
                 }
             };
 
@@ -603,6 +629,8 @@
             set('date_of_birth', record.date_of_birth);
 
             set('address', record.address);
+            set('address_suburb', record.suburb);  // Map suburb to address_suburb
+            set('address_state', record.state);    // Map state to address_state
             set('phone', record.phone);
             set('mobile', record.mobile);
             set('email', record.email);
@@ -617,7 +645,7 @@
             set('medicare_no', record.medicare_no);
             set('medicare_ref', record.medicare_ref);
             set('health_fund', record.health_fund);
-            set('health_fund_no', record.health_fund_no); // Fallback to group_number if needed
+            set('health_fund_no', record.health_fund_no);
             set('vet_affairs', record.vet_affairs);
 
             set('gp_name', record.gp_name || record.doctor_name);

@@ -49,6 +49,8 @@ class PatientRecord(BaseModel):
     mobile: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     email: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     address: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    suburb: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    state: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     occupation: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     
     # Hospital/Facility Info
