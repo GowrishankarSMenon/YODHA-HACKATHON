@@ -35,16 +35,10 @@ OCR_AVAILABLE = False
 ocr_page = None
 
 def _ensure_ocr_loaded():
-    """Lazy load OCR engine only when needed."""
-    global OCR_AVAILABLE, ocr_page
-    if not OCR_AVAILABLE:
-        try:
-            from ai.ai_engine import ocr_page_improved
-            ocr_page = ocr_page_improved
-            OCR_AVAILABLE = True
-            print("✅ OCR engine loaded successfully!")
-        except ImportError as e:
-            print(f"⚠️  OCR engine not available: {e}")
+    """Tesseract is assumed available as a system dependency."""
+    global OCR_AVAILABLE
+    OCR_AVAILABLE = True
+    print("✅ Layout-Aware OCR Engine (Tesseract) active!")
 
 # Import LLM extractor
 from ai.llm_extractor import LLMExtractor
@@ -102,19 +96,20 @@ def perform_ocr(file_content: bytes, filename: str) -> str:
     _ensure_ocr_loaded()  # Lazy load OCR engine
     
     if OCR_AVAILABLE:
-        # Use actual OCR from ai_worker.ocr_page()
         try:
+            from ai.layoutlmv3_engine import LayoutLMv3Engine
+            
             if filename.lower().endswith(".pdf"):
                 pages = convert_from_bytes(file_content)
-                ocr_result = ocr_page(pages[0])  # First page only for demo
+                img = pages[0].convert("RGB")
             else:
                 img = Image.open(BytesIO(file_content)).convert("RGB")
-                ocr_result = ocr_page(img)
             
-            return ocr_result['full_text']
+            # Use the already implemented Layout-Aware OCR
+            words, _ = LayoutLMv3Engine.ocr_with_boxes(img)
+            return " ".join(words)
         except Exception as e:
             print(f"OCR error: {e}")
-            # Fallback to sample OCR if actual OCR fails
             return load_sample_ocr(filename)
     else:
         # Fallback: Load sample OCR text for demo
@@ -262,19 +257,29 @@ async def extract_with_template(file: UploadFile = File(...)):
         print(f"✅ File read - Size: {len(file_content)} bytes")
         
         # Step 2: Perform OCR
-        print(f"\n🔍 Step 2: Performing OCR...")
+        print(f"\n🔍 Step 2: Converting file to Image and performing OCR...")
+        img = None
+        try:
+            if file.filename.lower().endswith(".pdf"):
+                pages = convert_from_bytes(file_content)
+                img = pages[0].convert("RGB")
+            else:
+                img = Image.open(BytesIO(file_content)).convert("RGB")
+        except Exception as e:
+            print(f"Image conversion error: {e}")
+
         ocr_text = perform_ocr(file_content, file.filename)
         print(f"✅ OCR completed - Text length: {len(ocr_text)} characters")
         print("="*40)
         print(f"📄 [RAW OCR OUTPUT START]\n{ocr_text}\n[RAW OCR OUTPUT END]")
         print("="*40)
         
-        # Step 3: LLM extraction with Groq (or fallback to regex)
-        print(f"\n🤖 Step 3: Extracting structured data with LLM...")
-        extracted_data = LLMExtractor.extract_structured_data(ocr_text, "AUTO")
-        print(f"\n✅ LLM extraction completed")
+        # Step 3: LLM extraction with Groq + Layout-Aware anchoring
+        print(f"\n🤖 Step 3: Extracting structured data with Layout-Aware Pipeline...")
+        extracted_data = LLMExtractor.extract_structured_data(ocr_text, "AUTO", image=img)
+        print(f"\n✅ Extraction completed")
         print("="*40)
-        print(f"🧠 [LLM RAW JSON START]\n{extracted_data}\n[LLM RAW JSON END]")
+        print(f"🧠 [FINAL STRUCTURED JSON START]\n{extracted_data}\n[FINAL STRUCTURED JSON END]")
         print("="*40)
         
         detected_type = LLMExtractor._detect_document_type(ocr_text)
