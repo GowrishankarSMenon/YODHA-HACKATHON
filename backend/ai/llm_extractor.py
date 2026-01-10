@@ -16,6 +16,9 @@ try:
 except Exception as e:
     GROQ_AVAILABLE = False
 
+from ai.layoutlmv3_engine import LayoutLMv3Engine
+from PIL import Image as PILImage
+
 USE_GROQ = os.getenv("USE_GROQ", "true").lower() == "true" and GROQ_AVAILABLE
 
 TEMPLATE_KEYS = {
@@ -55,41 +58,60 @@ class LLMExtractor:
     """LLM-powered extraction service that maps OCR text to structured JSON."""
     
     @staticmethod
-    def extract_structured_data(ocr_text: str, document_type: str = "AUTO", use_groq: bool = None) -> Dict[str, Any]:
-        """Extract structured data from OCR text."""
+    def extract_structured_data(ocr_text: str, document_type: str = "AUTO", use_groq: bool = None, image: PILImage.Image = None) -> Dict[str, Any]:
+        """Extract structured data from OCR text and optionally an image."""
         should_use_groq = use_groq if use_groq is not None else USE_GROQ
         
+        # Step 1: Layout-Aware Extraction (if image available)
+        anchored_data = {}
+        if image:
+            try:
+                print("📐 Performing Spatial Field Anchoring...")
+                anchored_data = LayoutLMv3Engine.process_image(image)
+                # Use raw ocr from engine if provided
+                if "_raw_ocr" in anchored_data:
+                    ocr_text = anchored_data.pop("_raw_ocr")
+            except Exception as e:
+                print(f"Layout extraction error: {e}")
+
         if document_type == "AUTO":
             document_type = LLMExtractor._detect_document_type(ocr_text)
         
-        # Use Groq extraction if enabled
         if should_use_groq and GROQ_AVAILABLE:
             try:
-                # Use strict template extraction
                 groq_service = get_groq_service()
-                extracted_data = groq_service.extract_key_value_pairs(ocr_text, document_type)
                 
-                # 🔥 Use advanced mapping to fill the 30+ field template
-                mapped_data = groq_service.map_to_template(extracted_data)
+                # Check if layout anchoring actually found anything useful
+                # (ignore clinical fields for this check)
+                structured_count = sum(1 for k, v in anchored_data.items() 
+                                     if v and k not in ['comments', 'diagnosis', '_raw_ocr'])
                 
-                # If mapping failed, return normalized extraction
-                if "error" in mapped_data:
-                    return normalize_to_template(extracted_data)
+                print(f"📊 Layout Anchoring filled {structured_count} structured fields.")
+
+                if structured_count < 2:
+                    print("⚠️ Layout Anchoring failed or was insufficient. Falling back to Full LLM Extraction...")
+                    final_data = groq_service.extract_full_template(ocr_text)
+                    return normalize_to_template(final_data)
                 
-                return mapped_data
+                # If layout anchoring succeeded, proceed with clinical normalization
+                clinical_data = groq_service.extract_key_value_pairs(
+                    comments_text=anchored_data.get("comments", ""),
+                    diagnosis_text=anchored_data.get("diagnosis", "")
+                )
+                
+                # Step 3: Merge Anchored (Deterministic) + Clinical (LLM-Normalized)
+                final_data = anchored_data.copy()
+                if clinical_data and "error" not in clinical_data:
+                    final_data["comments"] = clinical_data.get("comments")
+                    final_data["diagnosis"] = clinical_data.get("diagnosis")
+                
+                return normalize_to_template(final_data)
             except Exception as e:
-                print(f"Extraction/Mapping error: {e}")
-                pass  # Fallback to regex
+                print(f"LLM Extraction/Normalization error: {e}")
+                pass  # Fallback
         
-        # Regex-based extraction (legacy)
-        if document_type == "OPD_NOTE":
-            return LLMExtractor._extract_opd_note(ocr_text)
-        elif document_type == "LAB_REPORT":
-            return LLMExtractor._extract_lab_report(ocr_text)
-        elif document_type == "PRESCRIPTION":
-            return LLMExtractor._extract_prescription(ocr_text)
-        else:
-            return LLMExtractor._extract_generic(ocr_text)
+        # Fallback: Merge anchored data into template
+        return normalize_to_template(anchored_data if anchored_data else {"raw_text": ocr_text})
     
     @staticmethod
     def match_to_patient_record(extracted_data: Dict[str, Any]) -> PatientRecord:

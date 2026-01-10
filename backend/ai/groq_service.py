@@ -29,98 +29,152 @@ class GroqService:
     
     def extract_key_value_pairs(
         self, 
-        ocr_text: str, 
-        document_type: Optional[str] = None
+        comments_text: str = "",
+        diagnosis_text: str = ""
     ) -> Dict[str, Any]:
-        """
-        Extract key-value pairs from OCR text using Groq's LLM.
-        """
-        prompt = self._build_extraction_prompt(ocr_text, document_type)
+        """Normalize free-text clinical regions using Groq's LLM."""
+        if not self.api_key:
+            return {"error": "GROQ_API_KEY not configured"}
+
+        system_prompt = self._get_system_prompt()
+        user_prompt = self._build_extraction_prompt(comments_text, diagnosis_text)
         
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
+            client = Groq(api_key=self.api_key)
+            
+            response = client.chat.completions.create(
+                model=os.getenv("GROQ_MODEL", "qwen-2.5-32b"),
                 messages=[
-                    {"role": "system", "content": self._get_system_prompt()},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
                 ],
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
+                temperature=0.0,
+                max_tokens=1024,
                 response_format={"type": "json_object"}
             )
             
-            result = response.choices[0].message.content
-            return json.loads(result)
-            
-        except json.JSONDecodeError as je:
-            return {
-                "error": f"JSON decode error: {str(je)}",
-                "raw_text": ocr_text[:200]
-            }
+            content = response.choices[0].message.content
+            return json.loads(content)
         except Exception as e:
+            # The original error handling used ocr_text.
+            # Since ocr_text is no longer an argument, we use comments_text as a preview.
             return {
                 "error": str(e),
-                "raw_text": ocr_text[:200]
+                "raw_text_preview": comments_text[:200]
             }
-    
-    def _get_system_prompt(self) -> str:
-        """Get the system prompt for strict medical form filling."""
+
+    def extract_full_template(self, ocr_text: str) -> Dict[str, Any]:
+        """Fallback: Extract full template from raw OCR text when layout-aware extraction fails."""
+        if not self.api_key:
+            return {"error": "GROQ_API_KEY not configured"}
+
+        system_prompt = self._get_full_extraction_system_prompt()
+        user_prompt = self._build_full_extraction_user_prompt(ocr_text)
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=os.getenv("GROQ_MODEL", "qwen-2.5-32b"),
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.0,
+                max_tokens=1024,
+                response_format={"type": "json_object"}
+            )
+            
+            content = response.choices[0].message.content
+            return json.loads(content)
+        except Exception as e:
+            return {"error": str(e), "raw_text_preview": ocr_text[:200]}
+
+    def _get_full_extraction_system_prompt(self) -> str:
+        """System prompt for full template extraction (fallback mode)."""
         return """You are a medical form-filling AI.
 
-The medical document image ALWAYS follows the SAME FIXED FORMAT.
+Your task:
+- Fill ALL fields in the given JSON schema using the OCR text.
+- Return null for missing fields.
+- DO NOT hallucinate info.
+- Return JSON strictly matching the keys below."""
 
-Your task is to FILL ALL FIELDS in the given JSON schema using the OCR text.
-
-STRICT RULES:
-1. Use ONLY the keys provided in the schema
-2. DO NOT create new keys
-3. DO NOT rename keys
-4. DO NOT omit any key
-5. If a value is NOT visible in the OCR text, return null
-6. DO NOT guess or hallucinate values
-7. Return ONLY valid JSON (no text, no explanations)
-
-Accuracy is more important than completeness."""
-
-    def _build_extraction_prompt(
-        self,
-        ocr_text: str,
-        document_type: Optional[str]
-    ) -> str:
-        """Build a strict template prompt for form filling."""
-        return f"""Fill the following medical registration form using the OCR text below.
-
-Return JSON ONLY.
+    def _build_full_extraction_user_prompt(self, ocr_text: str) -> str:
+        """User prompt for full template extraction (fallback mode)."""
+        return f"""Fill the following medical registration form using the OCR text.
 
 Schema:
 {{
-  "patient_id": null,
-  "patient_name": null,
-  "surname": null,
-  "date_of_birth": null,
-  "gender": null,
-  "phone": null,
-  "mobile": null,
-  "email": null,
-  "address": null,
-  "suburb": null,
-  "state": null,
-  "occupation": null,
-  "appointment_datetime": null,
-  "procedure": null,
-  "hospital_name": null,
-  "hospital_address": null,
-  "health_fund": null,
-  "insurance_id": null,
-  "gp_name": null,
-  "referrer": null,
-  "comments": null
+  "patient_name": null, "surname": null, "date_of_birth": null, "gender": null,
+  "phone": null, "mobile": null, "email": null, "address": null,
+  "suburb": null, "state": null, "occupation": null, "appointment_datetime": null,
+  "procedure": null, "hospital_name": null, "hospital_address": null,
+  "health_fund": null, "insurance_id": null, "gp_name": null, "referrer": null,
+  "comments": null, "diagnosis": null
 }}
 
 OCR TEXT:
-<<<
 {ocr_text}
->>>"""
+"""
+    
+    def _get_system_prompt(self) -> str:
+        """Get the system prompt for layout-aware medical extraction."""
+        return """You are part of a medical document extraction pipeline.
+
+The system uses Layout-aware OCR (LayoutLMv3 / Tesseract with bounding boxes).
+Text positions (rows, columns, labels) are already known.
+
+Your role is NOT to guess structure.
+Your role is ONLY to:
+
+1. Read already-identified field regions (label + value boxes)
+2. Normalize the values (clean spelling, fix OCR noise)
+3. Extract ONLY free-text clinical meaning from:
+   - Comments
+   - Diagnosis
+   - Doctor notes
+4. NEVER infer missing structured fields like:
+   - Name, DOB, Phone, Address, Insurance, IDs
+   These are filled deterministically by layout anchors.
+
+Rules:
+- Do not create or rename fields.
+- Do not guess values that are not visible.
+- Do not use world knowledge.
+- If text is unclear, return null.
+- Return JSON strictly in the provided template.
+- Do not hallucinate.
+
+Pipeline order:
+Layout OCR → Field Anchoring → You (free-text normalization only) → Template → DB
+
+Your output must be clean, medical, and deterministic."""
+
+    def _build_extraction_prompt(
+        self,
+        comments_text: str = "",
+        diagnosis_text: str = ""
+    ) -> str:
+        """Build a layout-aware prompt for free-text normalization."""
+        return f"""The following text comes from specific layout regions of a fixed medical form.
+
+Structured fields are already mapped by position.
+You must only clean and normalize them.
+
+Free-text regions (for interpretation):
+- Comments:
+<<<{(comments_text or "N/A")}>>>
+
+- Diagnosis:
+<<<{(diagnosis_text or "N/A")}>>>
+
+Return JSON:
+{{
+  "diagnosis": null,
+  "comments": null
+}}
+
+Do NOT extract names, dates, numbers, or IDs.
+Do NOT invent missing data."""
 
     def summarize_text(self, ocr_text: str, document_type: Optional[str] = None) -> Dict[str, Any]:
         """Summarize OCR text using Groq's LLM."""
