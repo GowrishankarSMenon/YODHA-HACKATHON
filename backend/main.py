@@ -6,21 +6,17 @@ Workflow: DOCUMENT → OCR → LLM → DATABASE → FETCH
 """
 import uvicorn
 import uuid
-from fastapi import FastAPI, UploadFile, File, HTTPException, status, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from datetime import datetime
 from io import BytesIO
 from PIL import Image
 from pdf2image import convert_from_bytes
 import os
 import shutil
-from dotenv import load_dotenv
-
-# Load environment variables for Gemini API
-load_dotenv()
 
 # Redis Queue imports for async processing
 try:
@@ -39,10 +35,16 @@ OCR_AVAILABLE = False
 ocr_page = None
 
 def _ensure_ocr_loaded():
-    """Tesseract is assumed available as a system dependency."""
-    global OCR_AVAILABLE
-    OCR_AVAILABLE = True
-    print("✅ Layout-Aware OCR Engine (Tesseract) active!")
+    """Lazy load OCR engine only when needed."""
+    global OCR_AVAILABLE, ocr_page
+    if not OCR_AVAILABLE:
+        try:
+            from ai.ai_engine import ocr_page as _ocr_page
+            ocr_page = _ocr_page
+            OCR_AVAILABLE = True
+            print("✅ OCR engine loaded successfully!")
+        except ImportError as e:
+            print(f"⚠️  OCR engine not available: {e}")
 
 # Import LLM extractor
 from ai.llm_extractor import LLMExtractor
@@ -100,77 +102,23 @@ def perform_ocr(file_content: bytes, filename: str) -> str:
     _ensure_ocr_loaded()  # Lazy load OCR engine
     
     if OCR_AVAILABLE:
+        # Use actual OCR from ai_worker.ocr_page()
         try:
-            from ai.layoutlmv3_engine import LayoutLMv3Engine
-            
             if filename.lower().endswith(".pdf"):
                 pages = convert_from_bytes(file_content)
-                img = pages[0].convert("RGB")
+                lines = ocr_page(pages[0])  # First page only for demo
             else:
                 img = Image.open(BytesIO(file_content)).convert("RGB")
+                lines = ocr_page(img)
             
-            # Use the already implemented Layout-Aware OCR
-            words, _ = LayoutLMv3Engine.ocr_with_boxes(img)
-            return " ".join(words)
+            return "\n".join(lines)
         except Exception as e:
             print(f"OCR error: {e}")
+            # Fallback to sample OCR if actual OCR fails
             return load_sample_ocr(filename)
     else:
         # Fallback: Load sample OCR text for demo
         return load_sample_ocr(filename)
-
-def perform_gemini_ocr(img: Image.Image) -> str:
-    """
-    Perform OCR on Malayalam documents using Gemini Vision API.
-    Based on test_gemini_vision.py implementation.
-    """
-    try:
-        from google import genai
-        
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY not set in environment")
-        
-        print("🧠 Initializing Gemini Vision for Malayalam OCR...")
-        client = genai.Client(api_key=api_key)
-        
-        prompt = """
-This is a handwritten Malayalam medical/OPD note.
-
-1. Carefully read and understand the handwritten Malayalam text in the image.
-2. First, rewrite the content in clear Malayalam text (as best as you can).
-3. Then summarize in simple English what happened.
-4. Extract and list:
-   - Symptoms
-   - Diagnosis
-   - Medicines
-   - Doctor instructions
-   - Patient Name
-   - Patient ID/UHID (if present)
-   - Age
-   - Date
-   - Any other medical informatio
-
-If something is unclear or unreadable, explicitly say "unclear".
-Provide all extracted information in a structured format.
-"""
-        
-        print("🚀 Sending to Gemini Vision API...")
-        response = client.models.generate_content(
-            model="models/gemini-2.5-flash",
-            contents=[prompt, img],
-        )
-        
-        ocr_text = response.text
-        print(f"✅ Gemini Vision OCR completed - Text length: {len(ocr_text)} characters")
-        return ocr_text
-        
-    except Exception as e:
-        print(f"❌ Gemini Vision OCR error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Gemini Vision OCR failed: {str(e)}. Please check GEMINI_API_KEY in .env file."
-        )
 
 def load_sample_ocr(filename: str) -> str:
     """Load sample OCR text as fallback."""
@@ -251,11 +199,7 @@ async def process_document(file: UploadFile = File(...)):
         # Step 7: Get patient_id from extracted data (UHID)
         patient_id = extracted_data.get("patient_id", "UNKNOWN")
         
-        # Step 9: Map to Template
-        patient_record_obj = LLMExtractor.match_to_patient_record(extracted_data)
-        patient_record = patient_record_obj.dict()
-
-        # Step 10: Create medical record
+        # Step 8: Create medical record
         record = MedicalRecord(
             record_id=record_id,
             patient_id=patient_id,
@@ -270,7 +214,7 @@ async def process_document(file: UploadFile = File(...)):
         # Step 9: Save to database
         add_record(record)
         
-        # Step 11: Return response matching target schema
+        # Step 10: Return response matching target schema
         return {
             "record_id": record.record_id,
             "patient_id": record.patient_id,
@@ -278,8 +222,7 @@ async def process_document(file: UploadFile = File(...)):
             "extracted_data": record.extracted_data,
             "confidence_score": record.confidence_score,
             "status": record.status,
-            "processed_at": record.processed_at,
-            "patient_record": patient_record
+            "processed_at": record.processed_at
         }
         
     except Exception as e:
@@ -289,10 +232,7 @@ async def process_document(file: UploadFile = File(...)):
         )
 
 @app.post("/api/extract-with-template")
-async def extract_with_template(
-    file: UploadFile = File(...),
-    is_malayalam: Optional[str] = Form("false")
-):
+async def extract_with_template(file: UploadFile = File(...)):
     """
     Extract key-value pairs from medical documents using OCR + LLM.
     
@@ -311,47 +251,26 @@ async def extract_with_template(
         print("🌐 API ENDPOINT - /api/extract-with-template called")
         print("*"*80)
         
-        # Check if Malayalam mode is enabled
-        use_malayalam = is_malayalam.lower() == "true"
-        print(f"📝 Malayalam mode: {use_malayalam}")
-        
         # Step 1: Read file
         print(f"\n📥 Step 1: Reading file '{file.filename}'...")
         file_content = await file.read()
         print(f"✅ File read - Size: {len(file_content)} bytes")
         
-        # Step 2: Convert to Image and Perform OCR
-        print(f"\n🔍 Step 2: Converting file to Image and performing OCR...")
-        img = None
-        try:
-            if file.filename.lower().endswith(".pdf"):
-                pages = convert_from_bytes(file_content)
-                img = pages[0].convert("RGB")
-            else:
-                img = Image.open(BytesIO(file_content)).convert("RGB")
-        except Exception as e:
-            print(f"Image conversion error: {e}")
-
-        # Choose OCR method based on language
-        if use_malayalam:
-            print("🌏 Using Gemini Vision for Malayalam OCR...")
-            ocr_text = perform_gemini_ocr(img)
-        else:
-            print("📖 Using TrOCR for English OCR...")
-            ocr_text = perform_ocr(file_content, file.filename)
-        
+        # Step 2: Perform OCR
+        print(f"\n🔍 Step 2: Performing OCR...")
+        ocr_text = perform_ocr(file_content, file.filename)
         print(f"✅ OCR completed - Text length: {len(ocr_text)} characters")
-        print("="*40)
-        print(f"📄 [RAW OCR OUTPUT START]\n{ocr_text}\n[RAW OCR OUTPUT END]")
-        print("="*40)
+        print(f"📝 OCR text preview (first 200 chars): {ocr_text[:200]}...")
         
-        # Step 3: LLM extraction with Groq + Layout-Aware anchoring
-        print(f"\n🤖 Step 3: Extracting structured data with Layout-Aware Pipeline...")
-        extracted_data = LLMExtractor.extract_structured_data(ocr_text, "AUTO", image=img)
-        print(f"\n✅ Extraction completed")
-        print("="*40)
-        print(f"🧠 [FINAL STRUCTURED JSON START]\n{extracted_data}\n[FINAL STRUCTURED JSON END]")
-        print("="*40)
+        # Step 3: LLM extraction with Groq (or fallback to regex)
+        print(f"\n🤖 Step 3: Extracting structured data with LLM...")
+        extracted_data = LLMExtractor.extract_structured_data(ocr_text, "AUTO")
+        print(f"\n✅ LLM extraction completed")
+        print(f"   Type: {type(extracted_data)}")
+        print(f"   Is None: {extracted_data is None}")
+        if extracted_data:
+            print(f"   Keys: {list(extracted_data.keys()) if isinstance(extracted_data, dict) else 'Not a dict'}")
+            print(f"   Number of fields: {len(extracted_data) if isinstance(extracted_data, dict) else 0}")
         
         detected_type = LLMExtractor._detect_document_type(ocr_text)
         print(f"✅ Document type detected: {detected_type}")
@@ -369,24 +288,16 @@ async def extract_with_template(
         extraction_method = "groq" if (USE_GROQ and GROQ_AVAILABLE) else "regex"
         print(f"\n🔬 Extraction method: {extraction_method}")
         
-        # Standardized Patient Record
-        print("\n🔄 Step 5a: Mapping to Template...")
-        # (extracted_data is already printed above)
-        
-        patient_record_obj = LLMExtractor.match_to_patient_record(extracted_data)
-        print("   [TEMPLATE MAPPED RECORD]:", patient_record_obj.dict())
-        
         # Return key-value pairs format
         response_data = {
             "success": True,
             "extraction_method": extraction_method,
             "raw_ocr": ocr_text,
             "document_type": detected_type,
-            "extracted_data": extracted_data,
+            "extracted_data": extracted_data,  # Now contains key-value pairs if using Groq
             "confidence_score": confidence_score,
             "status": status_value,
-            "processed_at": datetime.now().isoformat() + "Z",
-            "patient_record": patient_record_obj.dict()
+            "processed_at": datetime.now().isoformat() + "Z"
         }
         
         print(f"\n📤 Step 5: Preparing response...")
@@ -507,7 +418,7 @@ async def upload_document_async(file: UploadFile = File(...)):
     print(f"[QUEUE] Queueing job {job_id}...")
     
     # Import worker function
-    from worker import process_document_with_llm
+    from redis_queue_module.worker import process_document_with_llm
     
     # Enqueue job
     job = ocr_queue.enqueue(
@@ -625,7 +536,7 @@ async def cleanup_old_jobs():
 # RUN SERVER
 # ================================================================
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     print("🚀 Starting MedScan AI - LLM Extraction Pipeline")
     print("📚 API Docs: http://localhost:8000/docs")
     print("💚 Health Check: http://localhost:8000/health")
