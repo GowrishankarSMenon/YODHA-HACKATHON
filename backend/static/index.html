@@ -4,17 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedScan AI - Patient Record</title>
-
+    <title>MedScan AI - Digital Medical Record</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #667eea;
-            --secondary: #764ba2;
-            --accent: #20c997;
-            --warning: #ffc107;
-            --danger: #dc3545;
-            --light: #f8f9fa;
-            --dark: #343a40;
+            --primary: #2563eb;
+            --secondary: #475569;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --light: #f8fafc;
+            --border: #e2e8f0;
+            --text-dark: #1e293b;
         }
 
         * {
@@ -24,14 +25,15 @@
         }
 
         body {
-            font-family: 'Inter', 'Segoe UI', sans-serif;
-            background: #f0f2f5;
-            color: var(--dark);
+            font-family: 'Inter', sans-serif;
+            background: #f1f5f9;
+            color: var(--text-dark);
             min-height: 100vh;
+            padding-bottom: 40px;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -39,154 +41,221 @@
         /* Header */
         header {
             background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            padding: 20px 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge.verifying {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        /* Upload Area */
+        .upload-area {
+            background: white;
+            border: 2px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 60px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #94a3b8;
+            margin-bottom: 15px;
+        }
+
+        /* Main Form */
+        #mainForm {
+            display: none;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 15px 25px;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+            color: var(--secondary);
+            font-size: 1.1rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .logo {
-            font-size: 1.5em;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .card-body {
+            padding: 25px;
         }
 
-        /* Upload Section */
-        .upload-area {
-            background: white;
-            border: 2px dashed #cbd5e0;
-            border-radius: 12px;
-            padding: 40px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-bottom: 30px;
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
         }
 
-        .upload-area:hover,
-        .upload-area.dragover {
-            border-color: var(--primary);
-            background: #f8f9ff;
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
         }
 
-        .upload-icon {
-            font-size: 3em;
-            color: #a0aec0;
-            margin-bottom: 10px;
-        }
-
-        /* Form Section - Hidden Initially */
-        #recordForm {
-            display: none;
-            grid-template-columns: 2fr 1fr;
-            gap: 30px;
-        }
-
-        .form-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            padding: 30px;
-        }
-
-        .section-title {
-            font-size: 1.2em;
-            font-weight: 700;
-            margin-bottom: 20px;
-            border-bottom: 2px solid var(--light);
-            padding-bottom: 10px;
-            color: var(--secondary);
+        .grid-4 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 20px;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             position: relative;
         }
 
-        .form-label {
+        label {
             display: block;
-            font-weight: 600;
             margin-bottom: 8px;
-            font-size: 0.9em;
-            color: #4a5568;
+            font-size: 0.9rem;
+            color: #64748b;
+            font-weight: 500;
         }
 
         .form-control {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #e2e8f0;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
             border-radius: 8px;
-            font-size: 1em;
-            transition: all 0.2s;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+            font-family: inherit;
         }
 
         .form-control:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
-        /* Confidence Highlighting */
-        .low-confidence {
-            border-color: var(--warning);
-            background-color: #fffaf0;
+        textarea.form-control {
+            resize: vertical;
+            min-height: 80px;
         }
 
-        .missing-field {
-            border-color: var(--danger);
-            background-color: #fff5f5;
-        }
-
-        .confidence-badge {
+        .confidence-indicator {
             position: absolute;
-            top: 0;
-            right: 0;
-            font-size: 0.75em;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-weight: bold;
+            right: 10px;
+            top: 38px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ccc;
         }
 
-        .badge-high {
-            background: #c6f6d5;
-            color: #22543d;
+        .conf-high {
+            background: var(--success);
         }
 
-        .badge-low {
-            background: #feebc8;
-            color: #744210;
+        .conf-low {
+            background: var(--warning);
         }
 
-        .badge-missing {
-            background: #fed7d7;
-            color: #822727;
+        .conf-missing {
+            background: var(--danger);
         }
 
-        /* Medications List */
-        .med-item {
-            background: var(--light);
-            padding: 15px;
+        /* Document Header Section */
+        .doc-header {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: #fdfdfd;
+            border-bottom: 1px solid var(--border);
+            padding: 20px;
+        }
+
+        .doc-header img {
+            height: 60px;
+        }
+
+        .hospital-info h2 {
+            font-size: 1.2rem;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .hospital-info p {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Comment Box Mockup */
+        .comment-box {
+            font-family: 'Nothing You Could Do', cursive;
+            /* Fallback to cursive */
+            font-size: 1.2rem;
+            color: #333;
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            padding: 20px;
             border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 4px solid var(--accent);
+            width: 100%;
+            min-height: 80px;
         }
 
-        .med-row {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr;
-            gap: 10px;
+        /* Action Bar */
+        .action-bar {
+            position: sticky;
+            bottom: 20px;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+            max-width: 1100px;
+            margin: 0 auto;
+            z-index: 100;
         }
 
         .btn {
-            padding: 12px 24px;
-            border: none;
+            padding: 10px 24px;
             border-radius: 8px;
             font-weight: 600;
+            border: none;
             cursor: pointer;
             transition: all 0.2s;
         }
@@ -194,39 +263,33 @@
         .btn-primary {
             background: var(--primary);
             color: white;
-            width: 100%;
         }
 
         .btn-primary:hover {
-            background: #5a67d8;
-            transform: translateY(-1px);
+            background: #1d4ed8;
         }
 
-        .ocr-preview {
-            font-family: 'Courier New', monospace;
-            font-size: 0.85em;
-            background: #2d3748;
-            color: #e2e8f0;
-            padding: 20px;
-            border-radius: 8px;
-            height: 400px;
-            overflow-y: auto;
-            white-space: pre-wrap;
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: #64748b;
         }
 
-        /* Loading Overlay */
-        .loading-overlay {
+        .btn-outline:hover {
+            background: #f8fafc;
+            color: #333;
+        }
+
+        /* Loading */
+        #loading {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            inset: 0;
             background: rgba(255, 255, 255, 0.9);
             display: none;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
             flex-direction: column;
+            z-index: 1000;
         }
 
         .spinner {
@@ -250,175 +313,231 @@
 
     <div class="container">
         <header>
-            <div class="logo">🏥 MedScan AI</div>
-            <div>Staff Portal</div>
+            <div class="logo">
+                <span style="font-size:2rem">🩺</span>
+                <div>
+                    <div>MedScan AI</div>
+                    <div style="font-size:0.8rem; font-weight:400; color:#64748b">Digital Record Extractor</div>
+                </div>
+            </div>
+            <div class="badge verifying">System Ready</div>
         </header>
 
         <!-- Upload Section -->
         <div class="upload-area" id="dropZone">
             <div class="upload-icon">📄</div>
             <h2>Upload Medical Document</h2>
-            <p>Drag & drop PDF/Image or click to browse</p>
+            <p style="color:#64748b; margin-top:10px">Drag & drop image/PDF or click to browse</p>
             <input type="file" id="fileInput" hidden accept="image/*,application/pdf">
         </div>
 
         <!-- Main Form Interface -->
-        <div id="recordForm">
-            <!-- Left Column: Form -->
-            <div class="form-card">
-                <div class="section-title">Patient Record Template</div>
+        <div id="mainForm">
 
-                <!-- SECTION 1: Patient Information -->
-                <h3
-                    style="margin-top:20px; color:#667eea; font-size:1em; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">
-                    Patient Information</h3>
-
-                <div class="form-group">
-                    <label class="form-label">Patient ID (UHID)</label>
-                    <input type="text" class="form-control" id="patientId" placeholder="Enter patient ID">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Patient Name</label>
-                    <input type="text" class="form-control" id="patientName" placeholder="Enter patient name">
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-                    <div class="form-group">
-                        <label class="form-label">Age</label>
-                        <input type="text" class="form-control" id="age" placeholder="Age">
+            <!-- Hospital Header -->
+            <div class="card">
+                <div class="doc-header">
+                    <div style="font-size:3rem">🏥</div>
+                    <div class="hospital-info" style="flex-grow:1">
+                        <input type="text" class="form-control" id="hospital_name" placeholder="Hospital Name"
+                            style="font-weight:bold; font-size:1.1rem; border:none; padding:0; background:transparent;">
+                        <input type="text" class="form-control" id="hospital_address" placeholder="Hospital Address"
+                            style="font-size:0.9rem; border:none; padding:0; background:transparent;">
                     </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Gender</label>
-                        <input type="text" class="form-control" id="gender" placeholder="M/F/Other">
+                    <div style="text-align:right">
+                        <div style="font-size:0.8rem; color:#666">Updated Group</div>
+                        <div style="font-weight:bold; color:var(--primary)" id="updatedGroup">IND-458921</div>
                     </div>
                 </div>
-
-                <!-- SECTION 2: Visit Details -->
-                <h3
-                    style="margin-top:30px; color:#667eea; font-size:1em; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">
-                    Visit Details</h3>
-
-                <div class="form-group">
-                    <label class="form-label">Visit Date</label>
-                    <input type="date" class="form-control" id="visitDate">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Doctor Name</label>
-                    <input type="text" class="form-control" id="doctorName" placeholder="Enter doctor name">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Chief Complaint</label>
-                    <textarea class="form-control" id="chiefComplaint" rows="2"
-                        placeholder="Primary complaint or reason for visit"></textarea>
-                </div>
-
-                <!-- SECTION 3: Vitals -->
-                <h3
-                    style="margin-top:30px; color:#667eea; font-size:1em; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">
-                    Vitals</h3>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-                    <div class="form-group">
-                        <label class="form-label">Blood Pressure</label>
-                        <input type="text" class="form-control" id="bloodPressure" placeholder="e.g. 120/80">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Pulse</label>
-                        <input type="text" class="form-control" id="pulse" placeholder="e.g. 72 bpm">
-                    </div>
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px;">
-                    <div class="form-group">
-                        <label class="form-label">Temperature</label>
-                        <input type="text" class="form-control" id="temperature" placeholder="e.g. 98.6°F">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Weight</label>
-                        <input type="text" class="form-control" id="weight" placeholder="e.g. 70 kg">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">SpO2</label>
-                        <input type="text" class="form-control" id="spo2" placeholder="e.g. 98%">
-                    </div>
-                </div>
-
-                <!-- SECTION 4: Clinical Details -->
-                <h3
-                    style="margin-top:30px; color:#667eea; font-size:1em; border-bottom:1px solid #e2e8f0; padding-bottom:5px;">
-                    Clinical Details</h3>
-
-                <div class="form-group">
-                    <label class="form-label">Diagnosis</label>
-                    <textarea class="form-control" id="diagnosis" rows="2" placeholder="Primary diagnosis"></textarea>
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-                    <div class="form-group">
-                        <label class="form-label">Test Name</label>
-                        <input type="text" class="form-control" id="testName" placeholder="Lab test name">
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Test Date</label>
-                        <input type="date" class="form-control" id="testDate">
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Next Visit Date</label>
-                    <input type="date" class="form-control" id="nextVisitDate">
-                </div>
-
-                <!-- SECTION 5: Medications -->
-                <div class="section-title" style="margin-top:30px;">Medications</div>
-                <div id="medicationList">
-                    <!-- Dynamic Med Items -->
-                </div>
-
-                <button class="btn btn-primary" onclick="submitToConsole()">
-                    ✅ Submit Verified Record
-                </button>
             </div>
 
-            <!-- Right Column: Context -->
-            <div class="form-card">
-                <div class="section-title">Source OCR Text</div>
-                <div class="ocr-preview" id="ocrPreview">
-                    Upload a document to see source text here...
-                </div>
-
-                <div style="margin-top:20px;">
-                    <div class="section-title">Status</div>
-                    <div id="statusInfo">Waiting for upload...</div>
+            <!-- Appointment Strip -->
+            <div class="card" style="background:#ecfdf5; border:1px solid #d1fae5;">
+                <div class="card-body" style="padding:15px 25px;">
+                    <div class="grid-2">
+                        <div>
+                            <span style="font-weight:600; color:#065f46">Appointment Date / Time: </span>
+                            <input type="text" id="visit_date"
+                                style="background:transparent; border:none; border-bottom:1px dashed #059669; color:#064e3b; font-weight:bold; width:200px;">
+                        </div>
+                        <div>
+                            <span style="font-weight:600; color:#065f46">Procedure: </span>
+                            <input type="text" id="procedure"
+                                style="background:transparent; border:none; border-bottom:1px dashed #059669; color:#064e3b; font-weight:bold; width:100%;">
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Patient Information -->
+            <div class="card">
+                <div class="card-header">Patient Information</div>
+                <div class="card-body">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>First Name</label>
+                            <input type="text" class="form-control" id="patient_name_first">
+                        </div>
+                        <div class="form-group">
+                            <label>Surname</label>
+                            <input type="text" class="form-control" id="patient_name_last">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Address</label>
+                        <input type="text" class="form-control" id="address">
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Suburb</label>
+                            <input type="text" class="form-control" id="address_suburb">
+                        </div>
+                        <div class="form-group">
+                            <label>State</label>
+                            <input type="text" class="form-control" id="address_state">
+                        </div>
+                    </div>
+
+                    <div class="grid-3">
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="text" class="form-control" id="phone">
+                        </div>
+                        <div class="form-group">
+                            <label>Mobile</label>
+                            <input type="text" class="form-control" id="mobile">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" class="form-control" id="email">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Occupation</label>
+                        <input type="text" class="form-control" id="occupation">
+                    </div>
+
+                    <div class="grid-4">
+                        <div class="form-group">
+                            <label>DOB</label>
+                            <input type="date" class="form-control" id="date_of_birth">
+                        </div>
+                        <div class="form-group">
+                            <label>Sex</label>
+                            <input type="text" class="form-control" id="gender">
+                        </div>
+                        <div class="form-group">
+                            <label>Patient ID (UHID)</label>
+                            <input type="text" class="form-control" id="patient_id">
+                        </div>
+                        <div class="form-group">
+                            <label>Age</label>
+                            <input type="text" class="form-control" id="age">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insurance & Referrals -->
+            <div class="card">
+                <div class="card-header">Insurance & Referrals</div>
+                <div class="card-body">
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Medicare No.</label>
+                            <input type="text" class="form-control" id="medicare_no">
+                        </div>
+                        <div class="form-group">
+                            <label>Ref</label>
+                            <input type="text" class="form-control" id="medicare_ref">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Health Fund</label>
+                            <input type="text" class="form-control" id="health_fund">
+                        </div>
+                        <div class="form-group">
+                            <label>Membership No.</label>
+                            <input type="text" class="form-control" id="health_fund_no">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>GP</label>
+                            <input type="text" class="form-control" id="gp_name">
+                        </div>
+                        <div class="form-group">
+                            <label>Referrer</label>
+                            <input type="text" class="form-control" id="referrer">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Vet Affairs</label>
+                        <input type="text" class="form-control" id="vet_affairs">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clinical Comments -->
+            <div class="card">
+                <div class="card-header">Clinical Comments & Notes</div>
+                <div class="card-body">
+                    <textarea class="comment-box" id="comments"></textarea>
+                </div>
+            </div>
+
+            <!-- Vitals & Diagnosis -->
+            <div class="card">
+                <div class="card-header">Vitals & Clinical Data</div>
+                <div class="card-body">
+                    <div class="grid-4">
+                        <div class="form-group"><label>Blood Pressure</label><input type="text" class="form-control"
+                                id="blood_pressure"></div>
+                        <div class="form-group"><label>Pulse</label><input type="text" class="form-control" id="pulse">
+                        </div>
+                        <div class="form-group"><label>Temp</label><input type="text" class="form-control"
+                                id="temperature"></div>
+                        <div class="form-group"><label>Weight</label><input type="text" class="form-control"
+                                id="weight"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Diagnosis</label>
+                        <textarea class="form-control" id="diagnosis"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="action-bar">
+                <button class="btn btn-outline" onclick="location.reload()">Cancel</button>
+                <button class="btn btn-primary" onclick="submitData()">Save Verified Record</button>
+            </div>
+
         </div>
     </div>
 
-    <div class="loading-overlay" id="loading">
+    <!-- Loading Overlay -->
+    <div id="loading">
         <div class="spinner"></div>
-        <h3 style="margin-top:20px; color:var(--dark)">Extracting Data...</h3>
+        <h3 style="margin-top:20px; color:#333;">Digitizing Medical Record...</h3>
+        <p style="color:#666;">Extracting patient data using AI</p>
     </div>
 
     <script>
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
 
-        // Drag & Drop Handlers
         dropZone.addEventListener('click', () => fileInput.click());
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#2563eb'; });
+        dropZone.addEventListener('dragleave', () => dropZone.style.borderColor = '#cbd5e1');
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZone.classList.remove('dragover');
             handleFile(e.dataTransfer.files[0]);
         });
         fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
@@ -426,145 +545,90 @@
         async function handleFile(file) {
             if (!file) return;
 
-            // Show loading
             document.getElementById('loading').style.display = 'flex';
-
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                const response = await fetch('/api/extract-with-template', {
-                    method: 'POST',
-                    body: formData
-                });
-
+                const response = await fetch('/api/extract-with-template', { method: 'POST', body: formData });
                 const data = await response.json();
-                populateForm(data);
+                console.log('%c 📩 RAW API RESPONSE:', 'background: #2563eb; color: white; padding: 4px; font-weight: bold;', data);
+                populateForm(data.patient_record);
             } catch (error) {
-                alert('Error processing file: ' + error.message);
+                alert('Analysis failed: ' + error.message);
             } finally {
                 document.getElementById('loading').style.display = 'none';
             }
         }
 
-        function populateForm(data) {
-            document.getElementById('recordForm').style.display = 'grid';
+        function populateForm(record) {
             document.getElementById('dropZone').style.display = 'none';
-            document.getElementById('ocrPreview').textContent = data.raw_ocr;
+            document.getElementById('mainForm').style.display = 'block';
 
-            const record = data.patient_record;
-
-            // Simple helper to set field value
-            const setField = (id, item) => {
+            // Helper to fill by ID
+            const set = (id, field) => {
                 const el = document.getElementById(id);
-                if (el) {
-                    el.value = item.value || '';
+                if (el && field) {
+                    el.value = field.value || '';
+                    if (field.confidence === 'LOW') el.style.backgroundColor = '#fffbeb';
+                    if (field.confidence === 'NOT_PRESENT_IN_DOC') el.style.borderColor = '#fb7185'; // Red alert for missing fields
                 }
             };
 
-            // Populate ALL fields - Patient Information  
-            setField('patientId', record.patient_id);
-            setField('patientName', record.patient_name);
-            setField('age', record.age);
-            setField('gender', record.gender);
+            // Intelligent split for names if needed
+            let pName = record.patient_name?.value || '';
+            let fName = pName.split(' ')[0] || '';
+            let sName = pName.split(' ').slice(1).join(' ') || '';
 
-            // Visit Details
-            setField('visitDate', record.visit_date);
-            setField('doctorName', record.doctor_name);
-            setField('chiefComplaint', record.chief_complaint);
+            document.getElementById('patient_name_first').value = fName;
+            document.getElementById('patient_name_last').value = sName;
 
-            // Vitals
-            setField('bloodPressure', record.blood_pressure);
-            setField('pulse', record.pulse);
-            setField('temperature', record.temperature);
-            setField('weight', record.weight);
-            setField('spo2', record.spo2);
+            set('patient_id', record.patient_id);
+            set('age', record.age);
+            set('gender', record.gender);
+            set('date_of_birth', record.date_of_birth);
 
-            // Clinical Details
-            setField('diagnosis', record.diagnosis);
-            setField('testName', record.test_name);
-            setField('testDate', record.test_date);
-            setField('nextVisitDate', record.next_visit_date);
+            set('address', record.address);
+            set('phone', record.phone);
+            set('mobile', record.mobile);
+            set('email', record.email);
+            set('occupation', record.occupation);
 
-            // Medications
-            const medList = document.getElementById('medicationList');
-            medList.innerHTML = '';
-            if (record.medications && record.medications.length > 0) {
-                record.medications.forEach(med => {
-                    const medDiv = document.createElement('div');
-                    medDiv.className = 'med-item';
-                    medDiv.innerHTML = `
-                    <div class="med-row">
-                        <input type="text" class="form-control" value="${med.name}" placeholder="Med Name">
-                        <input type="text" class="form-control" value="${med.dosage || ''}" placeholder="Dosage">
-                        <input type="text" class="form-control" value="${med.frequency || ''}" placeholder="Freq">
-                    </div>
-                `;
-                    medList.appendChild(medDiv);
-                });
-            } else {
-                medList.innerHTML = '<div style="color:#666; font-style:italic;">No medications found.</div>';
-            }
+            set('hospital_name', record.hospital_name);
+            set('hospital_address', record.hospital_address);
 
-            document.getElementById('statusInfo').innerHTML = `
-            <strong>Status:</strong> ${record.status}<br>
-            <strong>Processed:</strong> ${new Date().toLocaleTimeString()}
-        `;
+            set('visit_date', record.visit_date);
+            set('procedure', record.procedure);
+
+            set('medicare_no', record.medicare_no);
+            set('medicare_ref', record.medicare_ref);
+            set('health_fund', record.health_fund);
+            set('health_fund_no', record.health_fund_no); // Fallback to group_number if needed
+            set('vet_affairs', record.vet_affairs);
+
+            set('gp_name', record.gp_name || record.doctor_name);
+            set('referrer', record.referrer);
+
+            set('comments', record.comments);
+            set('diagnosis', record.diagnosis);
+
+            set('blood_pressure', record.blood_pressure);
+            set('pulse', record.pulse);
+            set('temperature', record.temperature);
+            set('weight', record.weight);
         }
 
-        // Global function for the Submit button
-        window.submitToConsole = function () {
-            const formData = {
-                // Patient Information
-                patient_id: document.getElementById('patientId').value,
-                patient_name: document.getElementById('patientName').value,
-                age: document.getElementById('age').value,
-                gender: document.getElementById('gender').value,
-
-                // Visit Details
-                visit_date: document.getElementById('visitDate').value,
-                doctor_name: document.getElementById('doctorName').value,
-                chief_complaint: document.getElementById('chiefComplaint').value,
-
-                // Vitals
-                blood_pressure: document.getElementById('bloodPressure').value,
-                pulse: document.getElementById('pulse').value,
-                temperature: document.getElementById('temperature').value,
-                weight: document.getElementById('weight').value,
-                spo2: document.getElementById('spo2').value,
-
-                // Clinical Details
-                diagnosis: document.getElementById('diagnosis').value,
-                test_name: document.getElementById('testName').value,
-                test_date: document.getElementById('testDate').value,
-                next_visit_date: document.getElementById('nextVisitDate').value,
-
-                // Medications
-                medications: []
-            };
-
-            // Collect medications
-            document.querySelectorAll('.med-item').forEach(item => {
-                const inputs = item.querySelectorAll('input');
-                formData.medications.push({
-                    name: inputs[0].value,
-                    dosage: inputs[1].value,
-                    frequency: inputs[2].value
-                });
+        window.submitData = function () {
+            const data = {};
+            document.querySelectorAll('input, textarea').forEach(el => {
+                if (el.id) data[el.id] = el.value;
             });
 
-            console.log('%c 🚀 SUBMITTING PATIENT RECORD', 'background: #667eea; color: white; font-size: 16px; padding: 10px; border-radius: 4px;');
-            console.log('Final Form Data:', formData);
-
-            // Count filled vs empty fields
-            const totalFields = Object.keys(formData).length - 1; // Exclude medications
-            const filledFields = Object.values(formData).filter(v => v && v !== '').length - 1;
-            console.log(`📊 Fields Status: ${filledFields}/${totalFields} fields filled`);
-
-            alert('Record submitted! Check browser console for data.');
+            console.log('%c 💾 SAVING RECORD', 'background: #2563eb; color: white; padding: 5px; font-weight: bold;');
+            console.log(data);
+            alert('Record saved verified! Check console for JSON output.');
         };
     </script>
-
 </body>
 
 </html>

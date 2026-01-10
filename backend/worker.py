@@ -103,11 +103,13 @@ def process_document_with_llm(job_id: str, file_path: str):
     print(f"[WORKER-LLM] Confidence score: {confidence_score:.2f}")
     print(f"[WORKER-LLM] Status: {status_value}")
 
-    # Step 5: Determine extraction method
-    from ai.llm_extractor import GROQ_AVAILABLE, USE_GROQ
-    extraction_method = "groq" if (USE_GROQ and GROQ_AVAILABLE) else "regex"
-    
+    # Step 5: Map to Template
+    print("[WORKER-LLM] Mapping to Template...")
+    patient_record_obj = LLMExtractor.match_to_patient_record(extracted_data)
+    patient_record = patient_record_obj.dict()
+
     # Step 6: Build complete result
+    from datetime import datetime
     result = {
         "job_id": job_id,
         "success": True,
@@ -118,7 +120,9 @@ def process_document_with_llm(job_id: str, file_path: str):
         "confidence_score": confidence_score,
         "status": status_value,
         "ocr_metadata": ocr_metadata,
-        "processed_lines": len(lines)
+        "processed_lines": len(lines),
+        "processed_at": datetime.now().isoformat() + "Z",
+        "patient_record": patient_record
     }
     
     print(f"[WORKER-LLM] ✅ Job {job_id} completed successfully!")

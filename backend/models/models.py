@@ -41,12 +41,37 @@ class PatientRecord(BaseModel):
     # Patient Information
     patient_id: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     patient_name: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    surname: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     age: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     gender: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    date_of_birth: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    phone: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    mobile: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    email: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    address: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    occupation: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     
-    # Visit Details
+    # Hospital/Facility Info
+    hospital_name: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    hospital_address: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    
+    # Insurance/Subscriber Details
+    insurance_id: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    insurance_type: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    group_number: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    subscriber_name: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    medicare_no: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    medicare_ref: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    health_fund: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    health_fund_no: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    vet_affairs: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    
+    # Visit/Doctor Details
     visit_date: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    procedure: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     doctor_name: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    gp_name: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    referrer: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     chief_complaint: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     
     # Vitals
@@ -58,6 +83,7 @@ class PatientRecord(BaseModel):
     
     # Clinical Details
     diagnosis: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
+    comments: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     test_name: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     test_date: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
     next_visit_date: PatientRecordItem = Field(default_factory=lambda: PatientRecordItem(value=None, confidence="MISSING"))
