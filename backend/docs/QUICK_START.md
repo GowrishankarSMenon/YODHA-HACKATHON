@@ -7,7 +7,7 @@ Visit: https://console.groq.com/keys → Create API Key
 
 ### 2. Configure
 ```bash
-# In d:\jyothi\backend, create .env file:
+# In the backend directory, create .env file:
 GROQ_API_KEY=gsk_your_key_here
 USE_GROQ=true
 ```
